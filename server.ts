@@ -184,7 +184,9 @@ app.post("/api/analyze", async (req, res) => {
         
         return res.json({ formats });
       } catch (playError: any) {
-        console.log("play-dl fallback to youtube-dl-exec", playError.message);
+        if (!String(playError?.message).includes("Sign in to confirm")) {
+          console.log("play-dl fallback to youtube-dl-exec", playError.message);
+        }
         try {
           const info = await youtubedl(url, {
             dumpSingleJson: true,
@@ -222,10 +224,10 @@ app.post("/api/analyze", async (req, res) => {
           return res.json({ formats });
         } catch (ytExecErr: any) {
           const errStr = String(ytExecErr?.message || ytExecErr);
-          console.error("youtube-dl-exec error", errStr);
-          if (errStr.includes("Sign in to confirm you’re not a bot")) {
+          if (errStr.includes("Sign in to confirm you’re not a bot") || errStr.includes("Sign in to confirm")) {
              return res.status(403).json({ error: "YouTube has temporarily blocked this server IP (Google Cloud) from downloading videos to prevent bot abuse. Please run the app locally or supply valid YouTube cookies." });
           }
+          console.error("youtube-dl-exec error", errStr);
           return res.status(500).json({ error: "Failed to extract YouTube video. The server might be blocked by YouTube." });
         }
       }

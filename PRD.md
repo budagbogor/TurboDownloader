@@ -1,102 +1,44 @@
 # Product Requirements Document (PRD)
-# TurboDownloader: Next-Generation Professional Download Accelerator
+## Project Name: TurboDownloader
 
-**Version:** 2.0.0  
-**Status:** Approved & Implemented  
-**Target Platforms:** Desktop (Windows, macOS, Linux via Electron), Web Dashboard, Mobile (Android via Capacitor)  
-**Author / Lead Architect:** Principal Full-Stack Software Engineer & AI System Architect  
+### 1. Ringkasan Eksekutif (Executive Summary)
+TurboDownloader adalah aplikasi web full-stack modern yang dirancang untuk mengunduh file dan media dengan kecepatan tinggi. Aplikasi ini memanfaatkan teknik pengunduhan multi-koneksi (multi-threaded chunk downloading) untuk memaksimalkan *bandwidth* dan memiliki kemampuan ekstraksi cerdas untuk berbagai platform media sosial (YouTube, TikTok, Facebook, dll.).
 
----
+### 2. Latar Belakang & Masalah
+*   Pengunduhan file berukuran besar di peramban web standar seringkali lambat karena hanya menggunakan koneksi tunggal.
+*   Mengunduh video dari media sosial seringkali membutuhkan aplikasi pihak ketiga yang penuh iklan atau berisiko *malware*.
+*   Solusi yang ada jarang menawarkan antarmuka UI/UX modern berbasis web yang bersih dan responsif.
 
-## 1. Executive Summary & Vision
+### 3. Tujuan (Goals) & Non-Tujuan (Non-Goals)
+**Tujuan:**
+*   Menyediakan kecepatan unduh maksimal melalui segmentasi file (HTTP Range Requests).
+*   Menyediakan antarmuka yang bersih (React + Tailwind) untuk memantau progres unduhan secara *real-time*.
+*   Mendukung ekstraksi media sosial secara transparan bagi pengguna.
+*   Menyediakan penanganan *error* yang baik, khususnya untuk proteksi *anti-bot* dari platform seperti YouTube.
 
-### 1.1 Vision Statement
-TurboDownloader is engineered to be the ultimate, modern open-source successor to Internet Download Manager (IDM). While IDM remains the historical benchmark for download acceleration on Windows, its legacy UI, closed ecosystem, lack of cross-platform support, and dated media extraction pipelines present a massive opportunity.
+**Non-Tujuan:**
+*   Aplikasi ini bukan platform berbagi *file* (file-sharing/hosting).
+*   Aplikasi ini tidak dirancang untuk membajak konten berbayar (DRM-protected content).
 
-TurboDownloader delivers:
-- **Maximum Throughput Acceleration:** Dynamic multi-threaded segmentation (up to 32 parallel HTTP connections with dynamic chunk byte-range splitting).
-- **Intelligent Media Sniffer & Stream Extractor:** Direct extraction and resolution selection for modern video platforms (YouTube, TikTok watermark-free, Facebook, X, Instagram, and direct HTTP/HTTPS/FTP streams).
-- **Modern Industrial Grade Interface:** A responsive, dark-mode first, high-density dashboard inspired by modern developer tooling with live per-segment connection waterfalls, real-time speed charts, and queue management.
-- **Cross-Platform Parity:** A unified TypeScript/Node architecture running as a standalone Electron desktop utility with native system tray integration, a high-performance local web server, and a mobile-ready Capacitor Android app.
+### 4. Kebutuhan Fungsional (Functional Requirements)
+*   **F1. Analisis URL:** Sistem dapat menerima input URL dan membedakan antara *Direct Link* (file mentah) dan *Social Media Link*.
+*   **F2. Ekstraksi Media:** Modul *backend* (menggunakan `play-dl`, `youtube-dl-exec`, dll.) harus bisa mengekstrak tautan unduhan langsung (Direct URL) dari platform media sosial.
+*   **F3. Pengunduhan Multi-Part:** *Backend* membagi file menjadi beberapa *chunk* (misal: 4 hingga 8 koneksi bersamaan) berdasarkan ukuran file dan kapabilitas server sumber (Accept-Ranges).
+*   **F4. Pemantauan Progres:** *Client* menerima metrik progres secara langsung (*real-time*), termasuk kecepatan (KB/s atau MB/s), ETA (Estimasi Waktu Selesai), dan persentase keseluruhan.
+*   **F5. Manajemen Antrean (Queue):** Pengguna dapat melihat daftar unduhan yang sedang berjalan, selesai, atau dibatalkan.
+*   **F6. Penggabungan File (Assembly):** Setelah semua segmen selesai diunduh, *backend* akan menggabungkannya menjadi satu file utuh yang siap disajikan ke pengguna.
 
----
+### 5. Kebutuhan Non-Fungsional (Non-Functional Requirements)
+*   **Performa:** Penggabungan *file chunk* harus efisien dan menggunakan *stream* untuk mencegah *overhead* memori pada server.
+*   **Ketahanan (Resilience):** Jika satu koneksi *chunk* gagal, sistem harus mampu mencoba ulang (retry) segmen tersebut tanpa mengulang dari awal.
+*   **Lingkungan Operasional:** Dirancang untuk berjalan optimal di *Localhost* (komputer pribadi) guna menghindari pemblokiran IP Data Center oleh YouTube/Google (Anti-Bot Protection).
 
-## 2. Competitive Analysis: TurboDownloader vs. IDM
+### 6. Tech Stack
+*   **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, Lucide React (Icons).
+*   **Backend:** Node.js, Express.js, TypeScript.
+*   **Core Libraries:** Axios (untuk *HTTP Range Requests*), `play-dl` & `youtube-dl-exec` (untuk ekstraksi media sosial).
+*   **Build System:** `esbuild` untuk mengompilasi *backend*, `vite build` untuk *frontend*.
 
-| Capability | Internet Download Manager (IDM) | TurboDownloader 2.0 |
-| :--- | :--- | :--- |
-| **User Interface** | 1990s Win32 dialogs, low DPI scaling | Modern Fluent/Tailwind UI, Dark/Light modes, responsive layout |
-| **Segment Visualization** | Static segmented bar | Live reactive multi-thread waterfall visualizer with real-time per-thread bitrates |
-| **Media Extraction** | Browser extension hook only | Integrated server-side parser (play-dl, youtube-dl, TikTok nowatermark) + quality picker |
-| **OS Compatibility** | Windows only | Windows, macOS, Linux (Electron), Web, Android (Capacitor) |
-| **Remote Management** | Not supported natively | Built-in REST API & WebSocket server for remote browser management |
-| **Multi-thread Engine** | Fixed chunk allocation | Dynamic byte-range segmentation with asynchronous worker thread merging |
-| **Queue & Scheduling** | Complex dialog queues | One-click Queue actions (Start All, Pause All, Priority Reordering) |
-| **Open & Extensible** | Closed source, paid license | Modern Node.js/TypeScript stack, zero-cost, modular architecture |
-
----
-
-## 3. Architecture & Technical Stack
-
-### 3.1 System Diagram
-```
-┌────────────────────────────────────────────────────────────┐
-│              User Interfaces (Presentation)                │
-├──────────────────────────┬─────────────────────────────────┤
-│  Electron Desktop Shell  │  React 19 + Tailwind CSS +      │
-│  (Window, Tray, IPC)     │  Lucide Icons + Framer Motion   │
-└────────────┬─────────────┴────────────────┬────────────────┘
-             │                              │
-             ▼                              ▼
-┌────────────────────────────────────────────────────────────┐
-│      Express 4 + WebSocket Fast-Path Server (Node.js)      │
-│  - REST Endpoints (/api/downloads, /api/analyze, etc.)     │
-│  - WebSocket Event Bus (Task progress, speed, segments)   │
-└────────────────────────────┬───────────────────────────────┘
-                             │
-                             ▼
-┌────────────────────────────────────────────────────────────┐
-│             Core Download Engine (TypeScript)              │
-├────────────────────────────┬───────────────────────────────┤
-│   DownloadManager (Store)  │   DownloadTask (State Machine)│
-│   - In-memory task registry│   - Byte-range chunking       │
-│   - Queue coordination     │   - Speed telemetry & ETA     │
-│   - Persistence layer      │   - Pause / Resume / Cancel   │
-├────────────────────────────┴───────────────────────────────┤
-│   Worker Threads (mergeWorker.ts)                          │
-│   - Non-blocking disk concatenation of segment buffers     │
-└────────────────────────────────────────────────────────────┘
-```
-
-### 3.2 Core Component Responsibilities
-1. **Frontend (`/src/App.tsx`, `/src/components/*`):**
-   - High-speed reactive dashboard rendering active downloads.
-   - Per-segment chunk visualizer displaying real-time worker thread progress.
-   - Media Analyzer Modal for examining video/audio formats and selecting resolution.
-   - Categorized library (All, Video, Audio, Compressed, Documents, Programs).
-   - Global speed, ETA, and bandwidth telemetry.
-
-2. **Backend Services (`server.ts`):**
-   - Head-request validation and Range header compliance checking.
-   - Media link resolution (TikTok API fallback, YouTube audio/video stream demuxing).
-   - WebSocket broadcast channel for low-latency speed and progress streaming.
-   - Static asset streaming for finished downloads.
-
-3. **Multi-Thread Download Engine (`DownloadTask.ts` & `mergeWorker.ts`):**
-   - Automated detection of `Accept-Ranges: bytes`.
-   - Dynamic allocation of 1–32 simultaneous TCP stream workers with Axios cancel tokens.
-   - Streamed writing directly to separate temp chunk files to prevent memory exhaustion.
-   - Multi-threaded assembly via Node.js `worker_threads` to avoid blocking the event loop.
-
----
-
-## 4. Functional Specifications
-
-- **F-01: Segmented Acceleration:** Parallel chunk downloads with range headers, reducing latency bottlenecks and bypassing single-connection ISP throttles.
-- **F-02: Live Thread Visualizer:** Visual inspection of each connection segment (progress, bytes transferred, status).
-- **F-03: Media Quality Analyzer:** Sniffing YouTube/TikTok/Direct links, extracting video resolutions (1080p, 720p, 480p) and audio options before download.
-- **F-04: Queue Management:** Batch actions (`Pause All`, `Resume All`, `Clear Completed`, `Delete All`).
-- **F-05: Smart Categorization:** Automatic tagging and filtering of files by extension into Videos, Music, Documents, Archives, Applications, and Miscellaneous.
-- **F-06: Speed & ETA Telemetry:** Accurate speed calculation, time remaining, and total elapsed duration.
-- **F-07: Resilient Error Handling & Resume:** Auto-reconnect on network dropouts, state preservation across interruptions.
-- **F-08: Cross-Platform Native Notifications:** Sound and system notifications upon download completion on both Desktop and Android.
+### 7. Keamanan & Batasan
+*   Server secara otomatis menolak tautan internal atau alamat IP lokal untuk mencegah eksploitasi SSRF (*Server-Side Request Forgery*).
+*   Validasi *file path* yang ketat saat mengunduh dan menggabungkan segmen (mencegah *Path Traversal*).

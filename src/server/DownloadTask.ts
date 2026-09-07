@@ -183,7 +183,9 @@ export class DownloadTask {
             }
           }
         } catch (ytErr: any) {
-          console.warn("play-dl extraction error:", ytErr.message);
+          if (!String(ytErr?.message).includes("Sign in to confirm")) {
+            console.warn("play-dl extraction error:", ytErr.message);
+          }
         }
       }
 
@@ -207,12 +209,12 @@ export class DownloadTask {
           }
         } catch (e: any) {
           const errStr = String(e?.message || e?.stderr || e);
+          if (errStr.includes("Sign in to confirm you’re not a bot") || errStr.includes("Sign in to confirm")) {
+             throw new Error("Gagal mengekstrak video media sosial: YouTube memblokir IP server ini (Google Cloud) untuk mencegah penyalahgunaan bot. Silakan jalankan aplikasi ini secara lokal.");
+          }
           console.warn("Social media extraction fallback to direct URL:", errStr);
           if (errStr.includes("ENOENT") && errStr.includes("youtube-dl-exec")) {
              console.error("youtube-dl-exec binary is missing! Ensure postinstall script runs properly.");
-          }
-          if (errStr.includes("Sign in to confirm you’re not a bot")) {
-             throw new Error("Gagal mengekstrak video media sosial: YouTube memblokir IP server ini (Google Cloud) untuk mencegah penyalahgunaan bot. Silakan gunakan ekstensi browser atau jalankan aplikasi ini secara lokal.");
           }
         }
       }
