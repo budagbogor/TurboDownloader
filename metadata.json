@@ -1,0 +1,6 @@
+{
+  "name": "IDM Clone - Video Downloader",
+  "description": "A high-performance video downloader with IDM-level speed, featuring segmented parallel downloading and a professional dashboard UI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
