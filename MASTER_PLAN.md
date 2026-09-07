@@ -79,9 +79,14 @@ Bagi pengembang (Developer), berikut adalah alur peta jalan pengembangan yang di
 *   **Fitur:** Menambahkan konfigurasi *Cookie Injection* di *frontend*.
 *   **Tujuan:** Mengizinkan pengguna memasukkan String Cookie Youtube secara manual melalui antarmuka, yang kemudian akan diteruskan ke *backend* (`youtube-dl-exec`) agar bebas dari blokir *Anti-Bot* tanpa harus melakukan *hardcode* di server.
 
-#### **Fase 3: Desktop App (Tauri / Electron Wrapper)**
-*   **Tujuan:** Memindahkan aplikasi web ini menjadi aplikasi Desktop *native* menggunakan *Tauri* atau *Electron*.
-*   **Manfaat:** Aplikasi Desktop dapat menulis *file* langsung ke direktori `/Downloads` di OS (tanpa *sandbox browser*), menghilangkan isu CORS sepenuhnya, dan tidak memerlukan server Node.js *backend* terpisah karena fungsi *download* dan *file system* bisa ditangani oleh sistem operasi secara langsung.
+#### **Fase 3: Desktop App (Tauri / Rust)**
+*   **Tujuan:** Memindahkan aplikasi web ini menjadi aplikasi Desktop *native* menggunakan *Tauri* dan bahasa pemrogaman *Rust*.
+*   **Manfaat:** 
+    *   **Performa & Ukuran:** Tauri menggunakan *webview* bawaan OS (bukan membundel Chromium seperti Electron). Ukuran *installer* akan menyusut dari ~150MB menjadi ~5MB.
+    *   **RAM & CPU:** Penggunaan memori jauh lebih rendah berkat *concurrency* di Rust (menggunakan `tokio`).
+    *   **Arsitektur:** Menggantikan peran server Node.js lokal dengan *backend* Rust (menggunakan `reqwest` untuk HTTP request, dan *Tauri IPC* untuk komunikasi ke React).
+    *   **Bebas CORS:** Rust langsung mengunduh ke *file system* OS tanpa halangan *sandbox browser*.
+*   **Status Implementasi:** Kerangka dasar konfigurasi Tauri sudah dibuat (`src-tauri` folder, `tauri.conf.json`, `Cargo.toml`). Anda cukup menjalankan `npm run tauri:dev` (membutuhkan instalasi Rust di komputer Anda).
 
 #### **Fase 4: Manajemen Antrean Lanjut (Advanced Queueing)**
 *   Menambahkan dukungan "Jeda/Lanjutkan" (*Pause/Resume*) pada tingkat byte dengan menyimpan status *chunk* yang sudah diunduh ke basis data lokal sementara (seperti SQLite/JSON Data Store).
