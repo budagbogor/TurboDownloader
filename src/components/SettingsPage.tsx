@@ -10,13 +10,12 @@ interface SettingsPageProps {
 }
 
 const QUALITY_OPTIONS = ["best", "2160p", "1440p", "1080p", "720p", "480p", "360p"];
-const THEME_OPTIONS = ["system", "light", "dark"] as const;
 const TABS = [
-  { key: "general", label: "General", icon: Sliders },
-  { key: "network", label: "Networking", icon: Network },
-  { key: "quality", label: "Quality", icon: Eye },
+  { key: "general",       label: "General",       icon: Sliders },
+  { key: "network",       label: "Networking",    icon: Network },
+  { key: "quality",       label: "Quality",       icon: Eye },
   { key: "notifications", label: "Notifications", icon: Bell },
-  { key: "advanced", label: "Advanced", icon: Palette },
+  { key: "advanced",      label: "Advanced",      icon: Palette },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -27,21 +26,21 @@ const BoolToggle: React.FC<{
   label: string;
   description: string;
 }> = ({ value, onChange, label, description }) => (
-  <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 dark:border-slate-800">
+  <div className="flex items-start justify-between gap-4 py-3.5 border-b border-subtle">
     <div className="flex-1 min-w-0">
-      <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{label}</div>
-      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{description}</div>
+      <div className="text-sm font-bold text-on-surface tracking-tight">{label}</div>
+      <div className="text-xs text-muted mt-0.5 leading-relaxed">{description}</div>
     </div>
     <button
       type="button"
       onClick={() => onChange(value ? 0 : 1)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
-        value ? "bg-indigo-600" : "bg-gray-300 dark:bg-slate-700"
+      className={`relative inline-flex h-6.5 w-[2.75rem] items-center rounded-full transition-colors shrink-0 ring-1 ring-inset ${
+        value ? "bg-brand-600 ring-brand-700/30 shadow-ring" : "bg-ink-200 ring-ink-300/60"
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-          value ? "translate-x-6" : "translate-x-1"
+        className={`inline-block h-[1.15rem] w-[1.15rem] transform rounded-full bg-white shadow-md transition-transform ${
+          value ? "translate-x-[1.35rem]" : "translate-x-1"
         }`}
       />
     </button>
@@ -56,15 +55,15 @@ const TextInput: React.FC<{
   placeholder?: string;
   type?: string;
 }> = ({ value, onChange, label, description, placeholder, type = "text" }) => (
-  <div className="py-3 border-b border-gray-100 dark:border-slate-800">
-    <label className="block text-sm font-medium text-slate-900 dark:text-slate-100 mb-1">{label}</label>
-    <div className="text-xs text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">{description}</div>
+  <div className="py-3 border-b border-subtle">
+    <label className="block text-sm font-bold text-on-surface mb-1 tracking-tight">{label}</label>
+    <div className="text-xs text-muted mb-2 leading-relaxed">{description}</div>
     <input
       type={type}
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="w-full px-3.5 py-2.5 text-sm rounded-xl2 border border-muted bg-surface text-on-surface focus:outline-none shadow-ring focus:border-brand-400 transition-colors font-medium"
     />
   </div>
 );
@@ -80,14 +79,14 @@ const NumberSlider: React.FC<{
   description: string;
   zeroLabel?: string;
 }> = ({ value, min, max, step, unit, onChange, label, description, zeroLabel }) => (
-  <div className="py-3 border-b border-gray-100 dark:border-slate-800">
-    <div className="flex items-center justify-between mb-1">
-      <label className="block text-sm font-medium text-slate-900 dark:text-slate-100">{label}</label>
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
+  <div className="py-3 border-b border-subtle">
+    <div className="flex items-center justify-between mb-1.5">
+      <label className="block text-sm font-bold text-on-surface tracking-tight">{label}</label>
+      <span className="chip chip-brand">
         {value === 0 && zeroLabel ? zeroLabel : `${value} ${unit}`}
       </span>
     </div>
-    <div className="text-xs text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">{description}</div>
+    <div className="text-xs text-muted mb-2.5 leading-relaxed">{description}</div>
     <input
       type="range"
       min={min}
@@ -95,7 +94,7 @@ const NumberSlider: React.FC<{
       step={step}
       value={value}
       onChange={(e) => onChange(parseInt(e.target.value, 10))}
-      className="w-full accent-indigo-600"
+      className="w-full accent-brand-600 h-1.5 bg-muted rounded-full appearance-none"
     />
   </div>
 );
@@ -107,18 +106,16 @@ const SelectField: React.FC<{
   label: string;
   description: string;
 }> = ({ value, onChange, options, label, description }) => (
-  <div className="py-3 border-b border-gray-100 dark:border-slate-800">
-    <label className="block text-sm font-medium text-slate-900 dark:text-slate-100 mb-1">{label}</label>
-    <div className="text-xs text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">{description}</div>
+  <div className="py-3 border-b border-subtle">
+    <label className="block text-sm font-bold text-on-surface mb-1 tracking-tight">{label}</label>
+    <div className="text-xs text-muted mb-2 leading-relaxed">{description}</div>
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="w-full px-3.5 py-2.5 text-sm rounded-xl2 border border-muted bg-surface text-on-surface focus:outline-none shadow-ring focus:border-brand-400 font-semibold"
     >
       {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
+        <option key={o.value} value={o.value}>{o.label}</option>
       ))}
     </select>
   </div>
@@ -158,18 +155,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-[fadeIn_0.15s_ease-out]">
-      <div className="w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-800 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 backdrop-blur-md p-4 animate-fade-in">
+      <div className="w-full max-w-4xl max-h-[90vh] surface-card flex flex-col overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-6 py-4.5 border-b border-subtle shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Settings</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Konfigurasi aplikasi disimpan permanen ke database
+            <h2 className="text-xl font-extrabold tracking-tight gradient-text-brand">Settings</h2>
+            <p className="text-xs text-muted mt-0.5 leading-relaxed">
+              Konfigurasi aplikasi disimpan permanen ke database SQLite lokal
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+            className="p-2 rounded-xl2 hover:bg-muted text-muted transition-colors"
             aria-label="Close settings"
           >
             <X className="w-5 h-5" />
@@ -177,7 +174,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
         </div>
 
         <div className="flex min-h-0 flex-1">
-          <nav className="w-48 shrink-0 border-r border-gray-200 dark:border-slate-800 p-2 bg-gray-50/50 dark:bg-slate-900/50">
+          <nav className="w-52 shrink-0 border-r border-subtle p-3 bg-muted/60">
             {TABS.map((t) => {
               const Icon = t.icon;
               const active = tab === t.key;
@@ -185,40 +182,29 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md mb-1 text-left transition ${
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl2 text-sm mb-1 text-left transition-all ${
                     active
-                      ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+                      ? "bg-brand-50 text-brand-700 font-bold border border-brand-100 shadow-sm"
+                      : "text-secondary hover:bg-surface hover:text-on-surface border border-transparent font-semibold"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4.5 h-4.5" />
                   {t.label}
                 </button>
               );
             })}
           </nav>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 scroll-soft">
             {tab === "general" && (
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">General</div>
+                <div className="text-[11px] font-bold tracking-[0.16em] text-muted uppercase mb-4">General</div>
                 <TextInput
                   value={settings.defaultDownloadDir}
                   onChange={(v) => patch("defaultDownloadDir", v)}
                   label="Download Directory"
                   description="Folder lokasi file disimpan. Bisa menggunakan path relatif (./downloads) atau absolute (C:/Users/name/Downloads)."
                   placeholder="./downloads"
-                />
-                <SelectField
-                  value={settings.theme}
-                  onChange={(v) => patch("theme", v as AppSettings["theme"])}
-                  options={[
-                    { value: "system", label: "System (match OS)" },
-                    { value: "light", label: "Light Mode" },
-                    { value: "dark", label: "Dark Mode" },
-                  ]}
-                  label="UI Theme"
-                  description="Pilih tema tampilan. System akan otomatis mengikuti preferensi sistem operasi."
                 />
                 <NumberSlider
                   value={settings.trashRetentionDays}
@@ -240,14 +226,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
                   value={settings.autoOptimizeMp4}
                   onChange={(v) => patch("autoOptimizeMp4", v)}
                   label="Auto Optimize MP4"
-                  description="Jalankan ffmpeg faststart pada file MP4 supaya kompatibel diputar di browser (moov atom di depan)."
+                  description="Jalankan ffmpeg faststart pada file MP4 supaya kompatibel diputar di browser (moov atom dipindahkan ke depan)."
                 />
               </div>
             )}
 
             {tab === "network" && (
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Networking</div>
+                <div className="text-[11px] font-bold tracking-[0.16em] text-muted uppercase mb-4">Networking</div>
                 <NumberSlider
                   value={settings.maxConcurrentDownloads}
                   min={1}
@@ -284,7 +270,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
 
             {tab === "quality" && (
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Quality & Engines</div>
+                <div className="text-[11px] font-bold tracking-[0.16em] text-muted uppercase mb-4">Quality & Engines</div>
                 <SelectField
                   value={settings.defaultVideoQuality}
                   onChange={(v) => patch("defaultVideoQuality", v)}
@@ -311,7 +297,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
 
             {tab === "notifications" && (
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Notifications</div>
+                <div className="text-[11px] font-bold tracking-[0.16em] text-muted uppercase mb-4">Notifications</div>
                 <BoolToggle
                   value={settings.enableBrowserNotifications}
                   onChange={(v) => patch("enableBrowserNotifications", v)}
@@ -329,70 +315,80 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
 
             {tab === "advanced" && (
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Advanced</div>
-                <div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/10 p-3 mb-4">
-                  <div className="flex items-start gap-2">
-                    <Radio className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-[11px] font-bold tracking-[0.16em] text-muted uppercase mb-4">Advanced</div>
+                <div className="rounded-2xl border border-warning-100 bg-warning-50/80 p-4 mb-5">
+                  <div className="flex items-start gap-2.5">
+                    <Radio className="w-4.5 h-4.5 text-warning-600 mt-0.5 shrink-0" />
                     <div>
-                      <div className="text-sm font-medium text-amber-900 dark:text-amber-200">Experimental</div>
-                      <div className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                        Pengaturan di bawah dapat mempengaruhi stabilitas. Ubah hanya jika memahami konsekuensi.
+                      <div className="text-sm font-bold text-warning-700 tracking-tight">Advanced / Experimental</div>
+                      <div className="text-xs text-warning-600 mt-1 leading-relaxed">
+                        Pengaturan di bawah hanya informasi engine. Pengaturan tema warna diseragamkan (Light Only) secara permanen agar tampilan profesional konsisten.
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 dark:border-slate-800">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <Wifi className="w-4 h-4" /> Engines Used
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                      yt-dlp (universal 1000+ sites) • play-dl (YouTube) • axios (HTTP direct) • ffmpeg (merge/optimize)
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 shrink-0">Active</div>
-                </div>
-                <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 dark:border-slate-800">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <FolderOpen className="w-4 h-4" /> Data Store
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                      SQLite WAL tasks/settings/event_log tables with debounce 5s bulk transaction.
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 shrink-0">WAL Mode</div>
-                </div>
-                <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 dark:border-slate-800">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <Trash2 className="w-4 h-4" /> Soft Delete
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                      Task yang dihapus masuk ke Trash (marked deleted_at) selama {settings.trashRetentionDays} hari, lalu di-purge otomatis.
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 shrink-0">Enabled</div>
+
+                <div className="space-y-2.5">
+                  {[
+                    {
+                      icon: Wifi, title: "Engines Used",
+                      desc: "yt-dlp (universal 1000+ sites) • play-dl (YouTube) • axios (HTTP direct) • ffmpeg (merge/optimize).",
+                      status: "Active", statusChip: "chip-success",
+                    },
+                    {
+                      icon: FolderOpen, title: "Data Store",
+                      desc: "SQLite WAL tasks / settings / event_log tables with debounce 5s bulk transaction.",
+                      status: "WAL Mode", statusChip: "chip-brand",
+                    },
+                    {
+                      icon: Trash2, title: "Soft Delete System",
+                      desc: `Task dihapus masuk ke Trash (marked deleted_at) selama ${settings.trashRetentionDays} hari, lalu di-purge otomatis.`,
+                      status: "Enabled", statusChip: "chip-success",
+                    },
+                    {
+                      icon: Palette, title: "Theme Mode",
+                      desc: "Light Only premium world-class UI — consistent white surface + indigo accent + emerald positive states.",
+                      status: "Light Only", statusChip: "chip-brand",
+                    },
+                  ].map((item, i) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={i} className="surface-card !shadow-none !rounded-[12px] !p-4 border border-subtle !border-muted">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0 flex items-start gap-2.5">
+                            <div className="p-2 rounded-xl bg-muted text-brand-700 shrink-0 mt-0.5">
+                              <Icon className="w-4.5 h-4.5" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-on-surface tracking-tight">{item.title}</div>
+                              <div className="text-xs text-muted mt-0.5 leading-relaxed">{item.desc}</div>
+                            </div>
+                          </div>
+                          <span className={`chip ${item.statusChip} shrink-0 mt-1`}>{item.status}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 shrink-0">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-subtle bg-muted/50 shrink-0">
           {saveError && (
-            <span className="text-xs text-red-600 dark:text-red-400 mr-auto">{saveError}</span>
+            <span className="text-xs text-danger-600 font-semibold mr-auto chip chip-danger !py-1">{saveError}</span>
           )}
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium rounded-md text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
+            className="px-4 py-2.5 text-sm font-semibold rounded-xl2 text-secondary bg-surface border border-muted hover:bg-subtle transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+            className="px-4.5 py-2.5 text-sm font-semibold rounded-xl2 bg-gradient-to-br from-brand-500 to-brand-700 hover:from-brand-600 hover:to-indigo-800 text-white disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-ring transition-all hover:-translate-y-0.5"
           >
             <Save className="w-4 h-4" />
             {saving ? "Saving..." : "Save Changes"}

@@ -122,27 +122,27 @@ export const GlobalDropPaste: React.FC<DropZonePasteProps> = ({ onUrlsDetected, 
 
   return (
     <div className={`fixed inset-0 z-[70] pointer-events-none transition-opacity duration-150 ${overlay.active || count > 0 ? "opacity-100" : "opacity-0"}`}>
-      <div className={`absolute inset-0 bg-gradient-to-br from-indigo-600/10 via-sky-500/10 to-violet-600/10 backdrop-blur-[2px] border-[6px] border-dashed transition-colors ${count > 0 ? "border-emerald-400/70" : "border-indigo-400/50"}`}>
+      <div className={`absolute inset-0 bg-gradient-to-br from-brand-600/10 via-sky-500/10 to-violet-600/10 backdrop-blur-[2px] border-[6px] border-dashed transition-colors ${count > 0 ? "border-success-500/70" : "border-brand-500/50"}`}>
         <div className="absolute inset-0 flex items-center justify-center p-6">
-          <div className="pointer-events-auto bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 px-6 py-5 max-w-md w-full">
+          <div className="pointer-events-auto surface-card rounded-2xl shadow-popover px-6 py-5 max-w-md w-full">
             <div className="flex items-start gap-4">
-              <div className={`p-3 rounded-xl border shrink-0 ${count > 0 ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400" : "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800/50 text-indigo-600 dark:text-indigo-400"}`}>
+              <div className={`p-3 rounded-xl border shrink-0 ${count > 0 ? "bg-success-50 border-success-100 text-success-600" : "bg-brand-50 border-brand-100 text-brand-600"}`}>
                 {count > 0 ? <LinkIcon className="w-6 h-6" /> : <FileUp className="w-6 h-6 animate-bounce" />}
               </div>
               <div className="min-w-0 flex-1">
                 {count === 0 ? (
                   <>
-                    <div className="text-base font-semibold text-slate-900 dark:text-white">Drop URLs or .txt file</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    <div className="text-base font-semibold text-on-surface">Drop URLs or .txt file</div>
+                    <div className="text-xs text-muted mt-1 leading-relaxed">
                       Tarik & lepaskan file .txt (1 URL/baris), URL text, atau paste Ctrl+V.
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="text-base font-semibold text-slate-900 dark:text-white">
+                    <div className="text-base font-semibold text-on-surface">
                       {count === 1 ? "URL Terdeteksi — membuka Add Download" : `${count} URLs Terdeteksi — membuka Batch Import`}
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    <div className="text-xs text-muted mt-1 leading-relaxed">
                       {overlay.lastUrls?.slice(0, 2).map((u, i) => (
                         <div key={i} className="truncate font-mono">{u}</div>
                       ))}
@@ -156,7 +156,7 @@ export const GlobalDropPaste: React.FC<DropZonePasteProps> = ({ onUrlsDetected, 
               <button
                 type="button"
                 onClick={closeOverlay}
-                className="pointer-events-auto p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0"
+                className="pointer-events-auto p-1.5 rounded-md hover:bg-subtle text-muted shrink-0"
                 aria-label="Close overlay"
               >
                 <X className="w-4 h-4" />

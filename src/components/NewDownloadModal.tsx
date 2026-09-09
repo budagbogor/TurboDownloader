@@ -94,7 +94,7 @@ export const NewDownloadModal: React.FC<NewDownloadModalProps> = ({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/software.zip"
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              className="w-full bg-muted border border-muted rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder:text-muted focus:bg-elevated focus:outline-none focus:border-success-500 focus:ring-1 focus:ring-success-500 transition-all shadow-card"
               required
             />
           </div>

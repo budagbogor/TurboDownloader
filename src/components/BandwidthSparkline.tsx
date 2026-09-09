@@ -47,8 +47,8 @@ export const BandwidthSparkline: React.FC<BandwidthSparklineProps> = ({
   return (
     <div className="flex flex-col gap-1" style={{ width }}>
       <div className="flex items-center justify-between text-[10px] font-mono">
-        <span className="text-slate-500 dark:text-slate-400">60s history</span>
-        <span className="font-semibold text-slate-800 dark:text-slate-100">{formatBytes(last)}{labelSuffix}</span>
+        <span className="text-muted">60s history</span>
+        <span className="font-bold text-on-surface">{formatBytes(last)}{labelSuffix}</span>
       </div>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Bandwidth sparkline last ${len} seconds, current ${formatBytes(last)} per second`}>
         <defs>

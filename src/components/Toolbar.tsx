@@ -140,7 +140,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search filename or link..."
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              className="w-full bg-muted border border-muted rounded-xl pl-9 pr-3 py-2 text-xs text-on-surface placeholder:text-muted focus:bg-elevated focus:outline-none focus:border-success-500 focus:ring-1 focus:ring-success-500 transition-all shadow-card"
               aria-label="Search downloads"
             />
           </div>

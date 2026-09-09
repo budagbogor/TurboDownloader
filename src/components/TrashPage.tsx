@@ -72,34 +72,34 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
 
   const statusColor = (s: string) => {
     switch (s) {
-      case "completed": return "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50";
+      case "completed": return "chip-success chip";
       case "downloading":
-      case "merging": return "bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/50";
-      case "error": return "bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/50";
-      case "paused": return "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/50";
-      default: return "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+      case "merging": return "bg-sky-50 text-sky-700 border-sky-200 chip";
+      case "error": return "chip-danger chip";
+      case "paused": return "chip-warning chip";
+      default: return "chip chip-default";
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4 animate-[fadeIn_0.15s_ease-out]" onClick={onClose}>
       <div
-        className="w-full max-w-4xl max-h-[88vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden"
+        className="w-full max-w-4xl max-h-[88vh] surface-card rounded-2xl flex flex-col overflow-hidden shadow-popover"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-muted shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-rose-50 dark:bg-rose-900/25 rounded-xl border border-rose-100 dark:border-rose-800/50">
-              <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            <div className="p-2 bg-danger-50 rounded-xl border border-danger-100">
+              <Trash2 className="w-5 h-5 text-danger-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-on-surface flex items-center gap-2">
                 Trash / Recycle Bin
-                <span className="text-[10px] font-mono font-semibold bg-rose-50 dark:bg-rose-900/25 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50 px-2 py-0.5 rounded-full">
+                <span className="chip chip-danger font-semibold">
                   {items.length} item{items.length === 1 ? "" : "s"}
                 </span>
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+              <p className="text-xs text-muted mt-0.5 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5" />
                 Auto purge permanen setelah {retentionDays} hari sejak dihapus
               </p>
@@ -109,7 +109,7 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
             <button
               onClick={refresh}
               disabled={loading}
-              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-50"
+              className="p-2 rounded-md hover:bg-subtle text-secondary disabled:opacity-50"
               title="Refresh trash list"
               aria-label="Refresh trash"
             >
@@ -117,7 +117,7 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+              className="p-2 rounded-md hover:bg-subtle text-secondary"
               aria-label="Close trash"
             >
               <X className="w-5 h-5" />
@@ -125,31 +125,31 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
           </div>
         </div>
 
-        <div className="overflow-y-auto p-5 flex-1 space-y-4">
+        <div className="overflow-y-auto p-5 flex-1 space-y-4 scroll-soft">
           {lastError && (
-            <div className="rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50 px-3 py-2 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+            <div className="rounded-xl2 bg-danger-50 border border-danger-100 px-3 py-2 text-xs text-danger-700 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <div>{lastError}</div>
             </div>
           )}
 
           {loading && items.length === 0 ? (
-            <div className="py-16 text-center text-slate-500 dark:text-slate-400 text-sm">
+            <div className="py-16 text-center text-muted text-sm">
               <RotateCcw className="w-6 h-6 animate-spin mx-auto mb-2 opacity-60" />
               Memuat daftar trash…
             </div>
           ) : items.length === 0 ? (
             <div className="py-16 text-center">
-              <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 inline-flex mb-3">
+              <div className="p-4 bg-muted rounded-2xl border border-muted text-muted inline-flex mb-3">
                 <ArchiveRestore className="w-8 h-8" />
               </div>
-              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Tempat sampah kosong</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              <h3 className="text-base font-semibold text-on-surface mb-1">Tempat sampah kosong</h3>
+              <p className="text-xs text-muted max-w-sm mx-auto">
                 Task yang kamu hapus akan muncul di sini selama {retentionDays} hari sebelum dihapus permanen otomatis oleh sistem.
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+            <ul className="divide-y divide-subtle border border-muted rounded-xl overflow-hidden bg-elevated">
               {items.map((it) => {
                 const busy = busyIds.has(it.id);
                 const confirm = confirmId === it.id;
@@ -157,18 +157,18 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
                 const remainMs = Math.max(0, expiredAt - Date.now());
                 const remainDays = Math.ceil(remainMs / (24 * 60 * 60 * 1000));
                 return (
-                  <li key={it.id} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <li key={it.id} className="p-3 hover:bg-subtle transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 shrink-0">
+                      <div className="p-2 bg-muted rounded-lg border border-muted text-secondary shrink-0">
                         <HardDrive className="w-5 h-5" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate" title={it.filename}>
+                            <div className="text-sm font-medium text-on-surface truncate" title={it.filename}>
                               {it.filename}
                             </div>
-                            <div className="mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate" title={it.url}>
+                            <div className="mt-0.5 text-[11px] font-mono text-muted truncate" title={it.url}>
                               {it.url.substring(0, 88)}{it.url.length > 88 ? "…" : ""}
                             </div>
                           </div>
@@ -178,7 +178,7 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
                             </span>
                           </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
                           <span className="inline-flex items-center gap-1">
                             <HardDrive className="w-3 h-3" />
                             {formatBytes(it.downloadedSize)} / {formatBytes(it.totalSize)}
@@ -186,23 +186,23 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
                           <span className="inline-flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             Deleted {formatRelativeTime(it.deletedAt)} ·
-                            <span className={remainDays <= 3 ? "text-rose-600 dark:text-rose-400 font-semibold ml-1" : ""}>
+                            <span className={remainDays <= 3 ? "text-danger-600 font-semibold ml-1" : ""}>
                               sisa {remainDays} hari
                             </span>
                           </span>
-                          <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                          <span className="inline-flex items-center gap-1 text-muted">
                             conn × {it.numConnections}
                           </span>
                           {it.error && (
-                            <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 max-w-[240px] truncate" title={it.error}>
+                            <span className="inline-flex items-center gap-1 text-danger-600 max-w-[240px] truncate" title={it.error}>
                               <AlertTriangle className="w-3 h-3" />
                               {it.error}
                             </span>
                           )}
                         </div>
-                        <div className="mt-2 h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="mt-2 h-1.5 w-full bg-muted rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-slate-400 to-slate-500 dark:from-slate-500 dark:to-slate-400 rounded-full"
+                            className="h-full bg-gradient-to-r from-slate-400 to-slate-500 rounded-full"
                             style={{ width: `${Math.min(100, it.totalSize > 0 ? (it.downloadedSize / it.totalSize) * 100 : 0)}%` }}
                           />
                         </div>
@@ -213,7 +213,7 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
                             <button
                               onClick={() => doRestore(it.id)}
                               disabled={busy}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 dark:bg-indigo-900/25 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-50 text-brand-700 border border-brand-100 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed"
                               aria-label={`Restore ${it.filename}`}
                             >
                               <ArchiveRestore className="w-3.5 h-3.5" />
@@ -222,7 +222,7 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
                             <button
                               onClick={() => setConfirmId(it.id)}
                               disabled={busy}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-50 dark:bg-rose-900/25 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-danger-50 text-danger-700 border border-danger-100 hover:bg-danger-100 disabled:opacity-50 disabled:cursor-not-allowed"
                               aria-label={`Delete ${it.filename} permanently`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -231,13 +231,13 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
                           </>
                         ) : (
                           <>
-                            <div className="text-[10px] font-semibold text-rose-700 dark:text-rose-300 text-center mb-0.5">
+                            <div className="text-[10px] font-semibold text-danger-700 text-center mb-0.5">
                               Yakin hapus permanen?
                             </div>
                             <button
                               onClick={() => doDeleteForever(it.id)}
                               disabled={busy}
-                              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-danger-600 hover:bg-danger-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               Ya, Hapus
@@ -245,7 +245,7 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
                             <button
                               onClick={() => setConfirmId(null)}
                               disabled={busy}
-                              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
+                              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-secondary border border-muted hover:bg-subtle disabled:opacity-50"
                             >
                               Batal
                             </button>
@@ -260,14 +260,14 @@ export const TrashPage: React.FC<TrashPageProps> = ({ isOpen, onClose, onRefresh
           )}
         </div>
 
-        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50 shrink-0">
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 inline-flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+        <div className="flex items-center justify-between px-6 py-3 border-t border-muted bg-muted/50 shrink-0">
+          <div className="text-[11px] text-muted inline-flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 text-warning-600" />
             Delete permanen akan menghapus row task + event log dari database (file di disk tetap tersimpan).
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+            className="chip chip-default"
           >
             Close
           </button>

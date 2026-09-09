@@ -72,7 +72,7 @@ export default function App() {
           body: `"${task.filename}" completed successfully!`,
         });
       } catch {
-        /* notification permission may be revoked silently */
+        /* noop */
       }
     }
   }, []);
@@ -90,8 +90,7 @@ export default function App() {
     setOnInspectUpdate,
   } = useDownloadsWebSocket([]);
 
-  const theme = useTheme(settings || {});
-  const isDark = theme.isDark;
+  useTheme();
 
   useEffect(() => { setOnTaskNotified(triggerNotification); }, [setOnTaskNotified, triggerNotification]);
   useEffect(() => { setOnInspectUpdate(handleInspectUpdate); }, [setOnInspectUpdate, handleInspectUpdate]);
@@ -199,7 +198,7 @@ export default function App() {
     defaultVideoQuality: "best",
     youtubeCookiePath: "",
     instagramCookieHeader: "",
-    theme: "system",
+    theme: "light",
     notificationsEnabled: 1,
     autoMergeSegments: 1,
     autoOptimizeMp4: 1,
@@ -209,22 +208,9 @@ export default function App() {
 
   const currentSettings: AppSettings = useMemo(() => ({ ...defaultAppSettings, ...(settings || {}) }), [settings, defaultAppSettings]);
 
-  const toggleTheme = useCallback(async () => {
-    const order: AppSettings["theme"][] = ["system", "light", "dark"];
-    const cur = currentSettings.theme || "system";
-    const idx = order.indexOf(cur);
-    const next = order[(idx + 1) % order.length];
-    try {
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "theme", value: next }),
-      });
-    } catch { /* noop */ }
-  }, [currentSettings.theme]);
-
   const handleSaveSettings = async (updated: AppSettings): Promise<boolean> => {
     for (const [k, v] of Object.entries(updated)) {
+      if (k === "theme") continue;
       const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -365,9 +351,7 @@ export default function App() {
   }, [downloads, currentCategory, searchQuery, sortBy]);
 
   return (
-    <div className={`min-h-screen font-sans selection:bg-emerald-500/20 ${theme.isDark ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"}`}>
-      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-200/40 via-transparent to-transparent dark:from-slate-800/30 -z-10" />
-
+    <div className="min-h-screen font-sans scroll-soft">
       <GlobalDropPaste onUrlsDetected={handleUrlsDetected} onAddSingleUrl={handleAddSingleUrl} />
 
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -376,9 +360,6 @@ export default function App() {
           activeCount={stats.activeCount}
           completedCount={stats.completedCount}
           connectionStatus={connectionStatus}
-          isDark={isDark}
-          theme={currentSettings.theme}
-          onToggleTheme={toggleTheme}
           speedHistory={speedHistory}
         />
 
@@ -401,7 +382,7 @@ export default function App() {
           searchInputRef={searchInputRef}
         />
 
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row gap-6 mt-5">
           <CategorySidebar
             currentCategory={currentCategory}
             onSelectCategory={setCurrentCategory}
@@ -412,32 +393,33 @@ export default function App() {
 
           <main className="flex-1 min-w-0">
             {filteredDownloads.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[360px] shadow-sm">
-                <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 mb-4">
+              <div className="surface-card p-12 text-center flex flex-col items-center justify-center min-h-[360px] animate-fade-in">
+                <div className="p-4 rounded-2xl bg-muted border border-subtle text-muted mb-4 animate-fade-in">
                   <Inbox className="w-8 h-8" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">
+                <h3 className="text-lg font-bold mb-1.5">
                   No downloads found in this section
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-6">
-                  Add a direct download link, use our media sniffer, paste any URL (Ctrl+V), or drag a .txt batch file — all accelerated with IDM-class multi-connection.
+                <p className="text-muted text-sm max-w-md mb-7 leading-relaxed">
+                  Add a direct download link, use our media sniffer, paste any URL <span className="font-mono bg-muted px-1.5 py-0.5 rounded border border-subtle text-secondary">Ctrl+V</span>, or drag a <span className="font-mono bg-muted px-1.5 py-0.5 rounded border border-subtle text-secondary">.txt</span> batch file — all accelerated with IDM-class multi-connection.
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <button
                     onClick={() => { setInitialAddUrl(""); setIsAddModalOpen(true); }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl text-xs transition-all shadow-sm"
+                    className="inline-flex items-center gap-2 px-4.5 py-2.5 rounded-xl2 font-semibold text-white bg-gradient-to-br from-brand-500 to-brand-700 hover:from-brand-600 hover:to-indigo-800 shadow-ring transition-all hover:-translate-y-0.5"
                   >
+                    <Download className="w-4 h-4" />
                     Add Direct Download
                   </button>
                   <button
                     onClick={() => setIsAnalyzerModalOpen(true)}
-                    className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-xl text-xs transition-all border border-slate-200 dark:border-slate-700 shadow-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl2 font-semibold text-secondary bg-surface border border-muted hover:bg-subtle transition-all hover:-translate-y-0.5 surface-card !shadow-none"
                   >
                     Sniff Media Link
                   </button>
                   <button
                     onClick={() => setIsBatchOpen(true)}
-                    className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-violet-700 dark:text-violet-300 px-4 py-2 rounded-xl text-xs transition-all border border-violet-200 dark:border-violet-800/40 shadow-sm inline-flex items-center gap-1.5"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl2 font-semibold text-brand-700 bg-brand-50/70 border border-brand-100 hover:bg-brand-50 transition-all hover:-translate-y-0.5"
                   >
                     <Layers className="w-3.5 h-3.5" />
                     Batch Import

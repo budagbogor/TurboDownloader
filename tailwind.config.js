@@ -1,7 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -18,6 +17,27 @@ export default {
           900: "#0f172a",
           950: "#020617",
         },
+        brand: {
+          50: "#eef2ff",
+          100: "#e0e7ff",
+          500: "#6366f1",
+          600: "#4f46e5",
+          700: "#4338ca",
+        },
+        success: {
+          50: "#ecfdf5",
+          100: "#d1fae5",
+          500: "#10b981",
+          600: "#059669",
+          700: "#047857",
+        },
+        danger: {
+          50: "#fef2f2",
+          100: "#fee2e2",
+          500: "#ef4444",
+          600: "#dc2626",
+          700: "#b91c1c",
+        },
       },
       fontFamily: {
         sans: [
@@ -32,8 +52,12 @@ export default {
         ],
       },
       boxShadow: {
-        card: "0 1px 2px 0 rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.04)",
-        popover: "0 12px 32px -8px rgba(15, 23, 42, 0.18)",
+        card: "0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 2px 6px -2px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.08)",
+        popover: "0 10px 30px -10px rgba(15, 23, 42, 0.14), 0 30px 60px -20px rgba(79, 70, 229, 0.12)",
+        ring: "0 0 0 4px rgba(99, 102, 241, 0.12)",
+      },
+      borderRadius: {
+        xl2: "14px",
       },
     },
   },
