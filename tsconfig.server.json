@@ -5,7 +5,7 @@
     "moduleResolution": "NodeNext",
     "outDir": "dist-server",
     "rootDir": ".",
-    "strict": false,
+    "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true
   },

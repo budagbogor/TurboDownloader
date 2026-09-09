@@ -27,8 +27,11 @@ export interface DownloadTask {
   category: "video" | "audio" | "compressed" | "document" | "program" | "other";
   numConnections: number;
   createdAt: number;
+  deletedAt?: number | null;
   segments?: SegmentInfo[];
 }
+
+export type TrashItem = DownloadTask & { deletedAt: number };
 
 export interface AnalyzeFormat {
   id: string;
@@ -46,4 +49,20 @@ export interface SystemStats {
   completedCount: number;
   pausedCount: number;
   totalSpeed: number;
+}
+
+export interface AppSettings {
+  maxConcurrentDownloads: number;
+  maxBandwidthKbps: number;
+  defaultConnections: number;
+  defaultDownloadDir: string;
+  defaultVideoQuality: string;
+  youtubeCookiePath: string;
+  instagramCookieHeader: string;
+  theme: "light" | "dark" | "system";
+  notificationsEnabled: number;
+  autoMergeSegments: number;
+  autoOptimizeMp4: number;
+  trashRetentionDays: number;
+  enableBrowserNotifications: number;
 }

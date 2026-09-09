@@ -4,3 +4,9 @@ dist-server
 release
 .env
 .DS_Store
+.dbg/
+downloads/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm

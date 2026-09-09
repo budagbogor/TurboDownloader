@@ -1,4 +1,4 @@
-# Master Plan & Architecture
+ *(Pastikan Tauri CLI dan Rust/Cargo sudah terinstal di komputer Anda jika ingin mem-build installer Tauri native).*# Master Plan & Architecture
 ## Project Name: TurboDownloader
 
 Dokumen ini berisi panduan teknis dan arsitektur untuk menjalankan, memodifikasi, dan mengembangkan TurboDownloader lebih lanjut di *Environment* Lokal atau IDE Eksternal (seperti VS Code, Cursor, WebStorm).

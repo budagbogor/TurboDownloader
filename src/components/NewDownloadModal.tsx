@@ -6,6 +6,7 @@ interface NewDownloadModalProps {
   onClose: () => void;
   onAddDownload: (url: string, filename: string, connections: number) => Promise<void>;
   defaultConnections?: number;
+  initialUrl?: string;
 }
 
 export const NewDownloadModal: React.FC<NewDownloadModalProps> = ({
@@ -13,18 +14,31 @@ export const NewDownloadModal: React.FC<NewDownloadModalProps> = ({
   onClose,
   onAddDownload,
   defaultConnections = 8,
+  initialUrl = "",
 }) => {
   const [url, setUrl] = useState("");
   const [filename, setFilename] = useState("");
   const [connections, setConnections] = useState(defaultConnections);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const urlInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setConnections(defaultConnections);
+      if (initialUrl) {
+        setUrl(initialUrl);
+      } else {
+        setUrl("");
+      }
+      setFilename("");
+      setError(null);
+      setTimeout(() => {
+        urlInputRef.current?.focus();
+        urlInputRef.current?.select();
+      }, 40);
     }
-  }, [isOpen, defaultConnections]);
+  }, [isOpen, defaultConnections, initialUrl]);
 
   if (!isOpen) return null;
 
@@ -75,11 +89,12 @@ export const NewDownloadModal: React.FC<NewDownloadModalProps> = ({
               Download Address (URL)
             </label>
             <input
+              ref={urlInputRef}
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/software.zip"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
               required
             />
           </div>

@@ -11,19 +11,24 @@ import {
   Package,
   Layers,
   HardDrive,
-  FolderOpen
+  FolderOpen,
+  Trash2,
 } from "lucide-react";
 
 interface CategorySidebarProps {
   currentCategory: CategoryType;
   onSelectCategory: (category: CategoryType) => void;
   tasks: DownloadTask[];
+  trashCount?: number;
+  onOpenTrash?: () => void;
 }
 
 export const CategorySidebar: React.FC<CategorySidebarProps> = ({
   currentCategory,
   onSelectCategory,
   tasks,
+  trashCount = 0,
+  onOpenTrash,
 }) => {
   const counts = {
     all: tasks.length,
@@ -54,11 +59,11 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
   ];
 
   return (
-    <aside className="w-full lg:w-64 bg-white border border-slate-200/90 rounded-2xl p-4 flex flex-col justify-between shrink-0 shadow-sm">
+    <aside className="w-full lg:w-64 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 flex flex-col justify-between shrink-0 shadow-sm">
       <div>
         <div className="mb-6">
-          <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase px-3 mb-2 flex items-center gap-1.5">
-            <HardDrive className="w-3.5 h-3.5 text-slate-400" />
+          <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase px-3 mb-2 flex items-center gap-1.5">
+            <HardDrive className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
             Queues & Status
           </h3>
           <nav className="space-y-1">
@@ -71,19 +76,19 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
                   onClick={() => onSelectCategory(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                     isActive
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-semibold"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent"
+                      ? "bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/50 font-semibold"
+                      : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-emerald-700" : item.color || "text-slate-400"}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? "text-emerald-700 dark:text-emerald-300" : item.color || "text-slate-400 dark:text-slate-500"}`} />
                     <span>{item.label}</span>
                   </div>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-md font-mono ${
                       isActive
-                        ? "bg-emerald-100 text-emerald-800 font-semibold"
-                        : "bg-slate-100 text-slate-600"
+                        ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-semibold"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     {item.count}
@@ -95,8 +100,8 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
         </div>
 
         <div>
-          <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase px-3 mb-2 flex items-center gap-1.5">
-            <FolderOpen className="w-3.5 h-3.5 text-slate-400" />
+          <h3 className="text-[11px] font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase px-3 mb-2 flex items-center gap-1.5">
+            <FolderOpen className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
             File Categories
           </h3>
           <nav className="space-y-1">
@@ -109,19 +114,19 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
                   onClick={() => onSelectCategory(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                     isActive
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-semibold"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent"
+                      ? "bg-emerald-50 dark:bg-emerald-900/25 text-emerald-800 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/50 font-semibold"
+                      : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-emerald-700" : "text-slate-400"}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? "text-emerald-700 dark:text-emerald-300" : "text-slate-400 dark:text-slate-500"}`} />
                     <span>{item.label}</span>
                   </div>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-md font-mono ${
                       isActive
-                        ? "bg-emerald-100 text-emerald-800 font-semibold"
-                        : "bg-slate-100 text-slate-600"
+                        ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 font-semibold"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     {item.count}
@@ -133,15 +138,33 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
         </div>
       </div>
 
-      <div className="mt-6 pt-4 border-t border-slate-200/80 text-[11px] text-slate-500">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-slate-500 font-medium">Target Storage</span>
-          <span className="text-emerald-700 font-mono font-medium">SSD/Disk</span>
+        <div className="mt-6 pt-4 border-t border-slate-200/80 dark:border-slate-800 space-y-3">
+          {onOpenTrash && (
+            <button
+              onClick={onOpenTrash}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all hover:bg-rose-50 dark:hover:bg-rose-900/15 text-rose-700 dark:text-rose-300 border border-rose-100 dark:border-rose-900/30 hover:border-rose-200 dark:hover:border-rose-800/40"
+              aria-label="Open trash"
+              title="Trash / Recycle Bin"
+            >
+              <div className="flex items-center gap-2.5">
+                <Trash2 className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                <span>Trash</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-md font-mono bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300">
+                {trashCount}
+              </span>
+            </button>
+          )}
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Target Storage</span>
+              <span className="text-emerald-700 dark:text-emerald-400 font-mono font-medium">SSD/Disk</span>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-2 font-mono text-[10px] text-slate-600 dark:text-slate-300 break-all">
+              ~/Downloads/TurboDownloader
+            </div>
+          </div>
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-[10px] text-slate-600 break-all">
-          ~/Downloads/TurboDownloader
-        </div>
-      </div>
     </aside>
   );
 };

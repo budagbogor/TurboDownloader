@@ -8,12 +8,17 @@ import {
   ArrowUpDown,
   Sparkles,
   Compass,
+  Settings as SettingsIcon,
+  Layers,
 } from "lucide-react";
 
 interface ToolbarProps {
   onOpenAddModal: () => void;
   onOpenAnalyzerModal: () => void;
   onOpenWizard: () => void;
+  onOpenSettings: () => void;
+  onOpenBatch: () => void;
+  onOpenCheatSheet: () => void;
   onResumeAll: () => void;
   onPauseAll: () => void;
   onClearCompleted: () => void;
@@ -23,12 +28,16 @@ interface ToolbarProps {
   onSortChange: (sort: "date" | "name" | "size" | "speed") => void;
   hasActiveDownloads: boolean;
   hasCompletedDownloads: boolean;
+  searchInputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenAddModal,
   onOpenAnalyzerModal,
   onOpenWizard,
+  onOpenSettings,
+  onOpenBatch,
+  onOpenCheatSheet,
   onResumeAll,
   onPauseAll,
   onClearCompleted,
@@ -38,6 +47,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onSortChange,
   hasActiveDownloads,
   hasCompletedDownloads,
+  searchInputRef,
 }) => {
   return (
     <div className="bg-white border border-slate-200/90 rounded-2xl p-4 mb-6 shadow-sm">
@@ -60,15 +70,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </button>
 
           <button
-            onClick={onOpenWizard}
-            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/90 font-medium px-3.5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all active:scale-95 cursor-pointer shadow-2xs"
-            title="Buka Menu Panduan / Wizard Pengguna Baru"
+            onClick={onOpenSettings}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-medium px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all active:scale-95 cursor-pointer shadow-xs"
+            title="Application Settings"
+            aria-label="Open settings"
           >
-            <Compass className="w-4 h-4 text-emerald-700" />
-            <span>Panduan Wizard</span>
+            <SettingsIcon className="w-4 h-4 text-indigo-500" />
+            <span>Settings</span>
           </button>
 
-          <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
+          <button
+            onClick={onOpenBatch}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-medium px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all active:scale-95 cursor-pointer shadow-xs"
+            title="Batch Import (B)"
+            aria-label="Batch import URLs"
+          >
+            <Layers className="w-4 h-4 text-violet-500" />
+            <span className="hidden sm:inline">Batch</span>
+          </button>
+
+          <button
+            onClick={onOpenCheatSheet}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-mono font-medium px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
+            title="Shortcuts Cheat Sheet (K or ?)"
+            aria-label="Open keyboard shortcuts cheat sheet"
+          >
+            <Compass className="w-4 h-4 text-slate-500" />
+            <span>?</span>
+          </button>
 
           <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
             <button
@@ -106,11 +135,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <div className="relative flex-1 sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search filename or link..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              aria-label="Search downloads"
             />
           </div>
 

@@ -1,48 +1,157 @@
 import { DownloadTask } from "./DownloadTask.js";
 import fs from "fs";
 import path from "path";
+import { dbgReport } from "./task-types.js";
+import {
+  db,
+  getAllTasks,
+  upsertTask,
+  deleteTaskPermanently,
+  softDeleteTask,
+  restoreTask,
+  getTrashTasks,
+  appendEventLog,
+  getEventLogs,
+  purgeOldTrash,
+  getAllSettings,
+  setSetting,
+  getSetting,
+  DEFAULT_SETTINGS,
+  TaskRow,
+} from "./database.js";
+
+export type { TaskRow, SettingsDefaults } from "./database.js";
 
 class DownloadManager {
   private tasks: Map<string, DownloadTask> = new Map();
+  private debounceTimer: NodeJS.Timeout | null = null;
+  private dirtyIds: Set<string> = new Set();
 
   constructor() {
-    this.restoreExistingFiles();
+    this.restoreFromDbAndFileSystem();
+    purgeOldTrash(getSetting("trashRetentionDays") || 30);
   }
 
-  private restoreExistingFiles() {
+  private restoreFromDbAndFileSystem() {
     try {
+      const rows = getAllTasks(false);
+      const restoredFromDb: Set<string> = new Set();
+      for (const row of rows) {
+        try {
+          const task = new DownloadTask(row.url, row.filename, row.num_connections);
+          task.id = row.id;
+          task.createdAt = row.created_at;
+          task.totalSize = row.total_size;
+          task.downloadedSize = row.downloaded_size;
+          task.status = row.status === "downloading" || row.status === "merging" ? "paused" : row.status;
+          task.speed = 0;
+          task.error = row.error || undefined;
+          task.isSocialMedia = row.is_social === 1;
+          task.useYoutubeDlDirect = row.use_ytdl === 1;
+          this.tasks.set(task.id, task);
+          restoredFromDb.add(row.filename);
+        } catch (e) {
+          console.error(`Failed to restore DB task ${row.id}:`, e);
+        }
+      }
+
       const downloadDir = path.join(process.cwd(), "downloads");
       if (!fs.existsSync(downloadDir)) {
         fs.mkdirSync(downloadDir, { recursive: true });
-        return;
+      } else {
+        const files = fs.readdirSync(downloadDir);
+        for (const file of files) {
+          if (file.startsWith(".")) continue;
+          if (restoredFromDb.has(file)) continue;
+          const filePath = path.join(downloadDir, file);
+          try {
+            const stat = fs.statSync(filePath);
+            if (stat.isFile() && stat.size > 0) {
+              const task = new DownloadTask("local://" + file, file, 8);
+              task.status = "completed";
+              task.totalSize = stat.size;
+              task.downloadedSize = stat.size;
+              task.createdAt = stat.mtimeMs;
+              task.speed = 0;
+              this.tasks.set(task.id, task);
+              this.markDirty(task.id);
+            }
+          } catch (e) {}
+        }
       }
 
-      const files = fs.readdirSync(downloadDir);
-      for (const file of files) {
-        if (file.startsWith(".")) continue;
-        const filePath = path.join(downloadDir, file);
-        try {
-          const stat = fs.statSync(filePath);
-          if (stat.isFile() && stat.size > 0) {
-            const task = new DownloadTask("local://" + file, file, 8);
-            task.status = "completed";
-            task.totalSize = stat.size;
-            task.downloadedSize = stat.size;
-            task.speed = 0;
-            this.tasks.set(task.id, task);
-          }
-        } catch (e) {}
-      }
+      this.flushDirtyImmediately();
     } catch (e) {
-      console.error("Failed to restore existing files:", e);
+      console.error("Failed to restore tasks:", e);
     }
   }
 
+  private markDirty(id: string) {
+    this.dirtyIds.add(id);
+    this.scheduleFlush();
+  }
+
+  private scheduleFlush() {
+    if (this.debounceTimer) return;
+    this.debounceTimer = setTimeout(() => {
+      this.flushDirtyImmediately();
+    }, 5000);
+  }
+
+  private flushDirtyImmediately() {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    try {
+      const tx = db.transaction((ids: string[]) => {
+        for (const id of ids) {
+          const t = this.tasks.get(id);
+          if (!t) continue;
+          const json: any = t.toJSON();
+          json.isSocialMedia = t.isSocialMedia;
+          json.useYoutubeDlDirect = t.useYoutubeDlDirect;
+          upsertTask(json);
+        }
+      });
+      if (this.dirtyIds.size > 0) {
+        tx(Array.from(this.dirtyIds));
+      }
+    } catch (e) {
+      console.error("Flush dirty failed:", e);
+    }
+    this.dirtyIds.clear();
+  }
+
   async addDownload(url: string, filename?: string, connections?: number): Promise<any> {
+    const maxConcurrent = getSetting("maxConcurrentDownloads") || DEFAULT_SETTINGS.maxConcurrentDownloads;
+    const activeCount = Array.from(this.tasks.values()).filter(
+      (t) => t.status === "downloading" || t.status === "merging"
+    ).length;
+
     const task = new DownloadTask(url, filename, connections);
     await task.initialize();
     this.tasks.set(task.id, task);
-    task.start();
+
+    this.markDirty(task.id);
+    this.flushDirtyImmediately();
+
+    appendEventLog({
+      taskId: task.id,
+      eventType: "task_created",
+      message: `Task created: ${task.filename}`,
+      metadata: { url, filename: task.filename, numConnections: task.numConnections },
+    });
+
+    if (activeCount >= maxConcurrent) {
+      task.status = "pending";
+      appendEventLog({ taskId: task.id, eventType: "queued", message: `Queued (max ${maxConcurrent} running)` });
+    } else {
+      task.start();
+    }
+
+    this.markDirty(task.id);
+    this.flushDirtyImmediately();
     return task.toJSON();
   }
 
@@ -50,6 +159,8 @@ class DownloadManager {
     const task = this.tasks.get(id);
     if (task) {
       task.pause();
+      appendEventLog({ taskId: id, eventType: "paused", message: "Download paused by user" });
+      this.markDirty(id);
     }
   }
 
@@ -57,6 +168,9 @@ class DownloadManager {
     const task = this.tasks.get(id);
     if (task) {
       task.resume();
+      appendEventLog({ taskId: id, eventType: "resumed", message: "Download resumed" });
+      this.markDirty(id);
+      this.processQueue();
     }
   }
 
@@ -64,6 +178,8 @@ class DownloadManager {
     for (const task of this.tasks.values()) {
       if (task.status === "downloading") {
         task.pause();
+        appendEventLog({ taskId: task.id, eventType: "paused", message: "Batch pause" });
+        this.markDirty(task.id);
       }
     }
   }
@@ -72,7 +188,36 @@ class DownloadManager {
     for (const task of this.tasks.values()) {
       if (task.status === "paused" || task.status === "error") {
         task.resume();
+        appendEventLog({ taskId: task.id, eventType: "resumed", message: "Batch resume" });
+        this.markDirty(task.id);
       }
+    }
+    this.processQueue();
+  }
+
+  processQueue() {
+    const maxConcurrent = getSetting("maxConcurrentDownloads") || DEFAULT_SETTINGS.maxConcurrentDownloads;
+    const active = Array.from(this.tasks.values()).filter(
+      (t) => t.status === "downloading" || t.status === "merging"
+    );
+    // #region debug-point H5:processQueue-entry
+    dbgReport("H5", "DownloadManager.ts:processQueue:197", "[DEBUG] H5 processQueue called", { maxConcurrent, activeCount: active.length, activeIds: active.slice(0, 10).map((t: any) => t.id), pendingStatusCount: Array.from(this.tasks.values()).filter((t: any) => t.status === "pending").length, totalTasks: this.tasks.size });
+    // #endregion
+    if (active.length >= maxConcurrent) return;
+
+    const pending = Array.from(this.tasks.values())
+      .filter((t) => t.status === "pending")
+      .sort((a, b) => a.createdAt - b.createdAt);
+
+    const slots = maxConcurrent - active.length;
+    for (let i = 0; i < slots && i < pending.length; i++) {
+      const t = pending[i];
+      appendEventLog({ taskId: t.id, eventType: "dequeued", message: "Started from queue" });
+      t.start();
+      // #region debug-point H5:processQueue-start
+      dbgReport("H5", "DownloadManager.ts:processQueue:212", "[DEBUG] H5 processQueue dequeue start() called", { taskId: t.id, statusAfterStart: t.status, useYoutubeDlDirect: (t as any).useYoutubeDlDirect });
+      // #endregion
+      this.markDirty(t.id);
     }
   }
 
@@ -81,10 +226,12 @@ class DownloadManager {
     for (const [id, task] of this.tasks.entries()) {
       if (task.status === "completed") {
         completedIds.push(id);
+        appendEventLog({ taskId: id, eventType: "cleared", message: "Task cleared from list" });
       }
     }
     for (const id of completedIds) {
       this.tasks.delete(id);
+      deleteTaskPermanently(id);
     }
     return completedIds;
   }
@@ -94,15 +241,23 @@ class DownloadManager {
     let activeCount = 0;
     let completedCount = 0;
     let pausedCount = 0;
+    let queuedCount = 0;
+    let errorCount = 0;
 
     for (const task of this.tasks.values()) {
       if (task.status === "downloading") {
         activeCount++;
         totalSpeed += task.speed;
+      } else if (task.status === "merging") {
+        activeCount++;
       } else if (task.status === "completed") {
         completedCount++;
       } else if (task.status === "paused") {
         pausedCount++;
+      } else if (task.status === "pending") {
+        queuedCount++;
+      } else if (task.status === "error") {
+        errorCount++;
       }
     }
 
@@ -111,6 +266,8 @@ class DownloadManager {
       activeCount,
       completedCount,
       pausedCount,
+      queuedCount,
+      errorCount,
       totalSpeed,
     };
   }
@@ -119,7 +276,10 @@ class DownloadManager {
     const task = this.tasks.get(id);
     if (task) {
       task.cancel();
-      
+      appendEventLog({ taskId: id, eventType: "soft_deleted", message: "Moved to trash" });
+      this.tasks.delete(id);
+      softDeleteTask(id);
+
       const filePath = path.join(process.cwd(), "downloads", task.filename);
       if (fs.existsSync(filePath)) {
         try {
@@ -128,17 +288,61 @@ class DownloadManager {
           console.error("Failed to delete output file:", err);
         }
       }
-      
-      this.tasks.delete(id);
+      this.processQueue();
     }
+  }
+
+  getTrash() {
+    return getTrashTasks();
+  }
+
+  restoreFromTrash(id: string) {
+    restoreTask(id);
+    const row = getAllTasks(true).find((r) => r.id === id);
+    if (row) {
+      try {
+        const task = new DownloadTask(row.url, row.filename, row.num_connections);
+        task.id = row.id;
+        task.createdAt = row.created_at;
+        task.totalSize = row.total_size;
+        task.downloadedSize = row.downloaded_size;
+        task.status = "paused";
+        task.speed = 0;
+        task.error = row.error || undefined;
+        task.isSocialMedia = row.is_social === 1;
+        task.useYoutubeDlDirect = row.use_ytdl === 1;
+        this.tasks.set(task.id, task);
+        appendEventLog({ taskId: id, eventType: "restored", message: "Restored from trash" });
+      } catch (e) {
+        console.error("Restore task failed:", e);
+      }
+    }
+  }
+
+  foreverDeleteFromTrash(id: string) {
+    deleteTaskPermanently(id);
   }
 
   getTask(id: string): DownloadTask | undefined {
     return this.tasks.get(id);
   }
 
+  getTaskLogs(id: string, limit = 300) {
+    return getEventLogs(id, limit);
+  }
+
   getAll() {
-    return Array.from(this.tasks.values()).map(task => task.toJSON());
+    this.flushDirtyImmediately();
+    return Array.from(this.tasks.values()).map((task) => task.toJSON());
+  }
+
+  getSettings() {
+    return getAllSettings();
+  }
+
+  updateSetting(key: any, value: any) {
+    setSetting(key, value);
+    appendEventLog({ eventType: "settings_updated", message: `${key} = ${JSON.stringify(value)}` });
   }
 }
 
