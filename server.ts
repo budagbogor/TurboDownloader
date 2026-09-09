@@ -566,6 +566,11 @@ app.use("/downloads", (req, res, next) => {
   }
 }, express.static(downloadDir, { acceptRanges: true }));
 
+const publicDir = path.join(process.cwd(), "public");
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir, { maxAge: "1d" }));
+}
+
 // ============================================================
 // Global Error Handler - stack trace stripped for production
 // ============================================================
