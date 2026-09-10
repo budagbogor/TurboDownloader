@@ -3,15 +3,36 @@ import fs from "fs";
 import path from "path";
 import type { DownloadStatus, DownloadTaskJson } from "./task-types.js";
 
-const DB_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DB_DIR, "turbodownloader.db");
+const IS_VERCEL = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
+
+let DB_DIR: string;
+let DB_PATH: string;
+
+if (process.env.SQLITE_PATH) {
+  DB_PATH = path.resolve(process.env.SQLITE_PATH);
+  DB_DIR = path.dirname(DB_PATH);
+} else if (IS_VERCEL) {
+  DB_DIR = "/tmp/turbodownloader-db";
+  DB_PATH = path.join(DB_DIR, "turbodownloader.ephemeral.sqlite");
+} else {
+  DB_DIR = path.join(process.cwd(), "data");
+  DB_PATH = path.join(DB_DIR, "turbodownloader.db");
+}
 
 if (!fs.existsSync(DB_DIR)) {
   fs.mkdirSync(DB_DIR, { recursive: true });
+  if (IS_VERCEL) try { fs.chmodSync(DB_DIR, 0o755); } catch {}
 }
 
+export { DB_DIR, DB_PATH, IS_VERCEL as DB_ON_VERCEL_EPHEMERAL };
+
 export const db = new Database(DB_PATH);
-db.pragma("journal_mode = WAL");
+try {
+  db.pragma("journal_mode = WAL");
+} catch (e) {
+  console.warn("[database.ts] WAL pragma failed (ephemeral fs?), falling back to DELETE journal:", (e as Error).message);
+  try { db.pragma("journal_mode = DELETE"); } catch {}
+}
 db.pragma("foreign_keys = ON");
 
 db.exec(`

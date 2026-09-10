@@ -4,9 +4,11 @@ import youtubedlPkg from "youtube-dl-exec";
 const youtubedl = (youtubedlPkg as any).default || youtubedlPkg;
 
 import { DEFAULT_USER_AGENT, Segment, dbgReport } from "./task-types.js";
-import { getFfmpegBinary, optimizeVideoForCompatibility } from "./ffmpeg-toolchain.js";
+import { getFfmpegBinary, optimizeVideoForCompatibility, ensureExecutable } from "./ffmpeg-toolchain.js";
 import type { YtDlTrackState } from "./media-extractors.js";
 import { getAllSettings } from "./database.js";
+
+const IS_VERCEL = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
 
 export interface YtDlHandlerCtx extends YtDlTrackState {
   taskId: string;
@@ -51,10 +53,20 @@ export function findYtDlpBinary(): string {
         path.join(nodeModRoot, "node_modules", "youtube-dl-exec", "bin", "youtube-dl"),
         path.join(nodeModRoot, "node_modules", "youtube-dl-exec", "bin", "youtube-dl.exe"),
       ];
+      if (IS_VERCEL) {
+        guesses.push(
+          "/tmp/yt-dlp",
+          "/usr/local/bin/yt-dlp",
+          "/usr/local/bin/youtube-dl",
+          "/usr/bin/yt-dlp",
+          "/opt/bin/yt-dlp"
+        );
+      }
       for (const g of guesses) candidates.push(g);
     } catch (_) {}
     for (const c of candidates) {
       if (typeof c === "string" && fs.existsSync(c)) {
+        ensureExecutable(c);
         ytExe = c;
         break;
       }

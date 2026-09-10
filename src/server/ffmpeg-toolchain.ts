@@ -2,6 +2,9 @@ import fs from "fs";
 import path from "path";
 import { exec, execSync } from "child_process";
 import ffmpegStatic from "ffmpeg-static";
+import type { DownloadStatus } from "./task-types.js";
+
+const IS_VERCEL = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
 
 export interface MergeCtx {
   taskId: string;
@@ -9,15 +12,46 @@ export interface MergeCtx {
   outputDir: string;
   tempDir: string;
   getCategory: () => string;
-  setStatus: (s: any) => void;
+  setStatus: (s: DownloadStatus) => void;
   setError: (s: string) => void;
   setFinalSize: (n: number) => void;
   stopSpeedCalculation: () => void;
 }
 
+export function ensureExecutable(filePath: string): boolean {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    if (process.platform !== "win32") {
+      try { fs.chmodSync(filePath, 0o755); } catch {}
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getFfmpegBinary(): string | null {
   const packaged = typeof ffmpegStatic === "string" && ffmpegStatic ? ffmpegStatic : null;
-  if (packaged && fs.existsSync(packaged)) return packaged;
+  if (packaged) {
+    ensureExecutable(packaged);
+    if (fs.existsSync(packaged)) return packaged;
+  }
+  if (IS_VERCEL) {
+    try {
+      const candidates = [
+        "/tmp/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
+        "/opt/ffmpeg/bin/ffmpeg",
+      ];
+      for (const c of candidates) {
+        if (fs.existsSync(c)) {
+          ensureExecutable(c);
+          return c;
+        }
+      }
+    } catch {}
+  }
   try {
     execSync("ffmpeg -version", { stdio: "ignore", windowsHide: true });
     return "ffmpeg";

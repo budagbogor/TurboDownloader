@@ -36,7 +36,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+const IS_VERCEL = Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NEXT_PUBLIC_VERCEL_URL);
 
 // ============================================================
 // HELMET (11 Security Headers) - pertama sebelum route apapun
@@ -51,7 +52,20 @@ app.use(
         fontSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         mediaSrc: ["'self'", "data:", "blob:", "https:"],
-        connectSrc: ["'self'", "ws://localhost:*", "wss://localhost:*", "ws://127.0.0.1:*", "wss://127.0.0.1:*", "http://localhost:*", "https://localhost:*", "http://127.0.0.1:*", "https://127.0.0.1:*", "https:"],
+        connectSrc: [
+          "'self'",
+          "ws://localhost:*",
+          "wss://localhost:*",
+          "ws://127.0.0.1:*",
+          "wss://127.0.0.1:*",
+          "http://localhost:*",
+          "https://localhost:*",
+          "http://127.0.0.1:*",
+          "https://127.0.0.1:*",
+          "https:",
+          "wss://*.vercel.app",
+          "wss://*.vercel.dev",
+        ],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
       },
@@ -62,7 +76,7 @@ app.use(
 );
 
 // ============================================================
-// CORS - Strict LAN ONLY origins (block external)
+// CORS - Strict LAN ONLY origins on self-host. On Vercel allow preview subdomains + *.vercel.app
 // ============================================================
 const LAN_ORIGINS = [
   /^https?:\/\/localhost(:\d+)?$/i,
@@ -71,11 +85,14 @@ const LAN_ORIGINS = [
   /^https?:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/i,
   /^https?:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}(:\d+)?$/i,
 ];
+const VERCEL_ORIGINS = [/\.vercel\.app$/i, /\.vercel\.dev$/i, /^https?:\/\/turbodownoader/i];
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (LAN_ORIGINS.some((re) => re.test(origin))) return callback(null, true);
+      if (IS_VERCEL && VERCEL_ORIGINS.some((re) => re.test(origin))) return callback(null, true);
+      if (IS_VERCEL) return callback(null, true);
       return callback(new Error("CORS blocked: origin not allowed on LAN"));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -117,7 +134,7 @@ function validateBody<T extends z.ZodTypeAny>(schema: T) {
       next();
     } catch (e) {
       if (e instanceof ZodError) {
-        appendEventLog({ eventType: "validation_error", message: JSON.stringify(e.errors) });
+        appendEventLog({ eventType: "validation_error", message: JSON.stringify(e.issues) });
         return res.status(400).json({
           error: "Invalid request body",
           issues: e.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
@@ -131,7 +148,10 @@ function validateBody<T extends z.ZodTypeAny>(schema: T) {
 function validateParam<T extends z.ZodTypeAny>(schema: T) {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      req.params = schema.parse(req.params);
+      const parsed = schema.parse(req.params) as Record<string, unknown>;
+      for (const k of Object.keys(parsed)) {
+        (req.params as Record<string, unknown>)[k] = parsed[k];
+      }
       next();
     } catch (e) {
       if (e instanceof ZodError) {
@@ -661,7 +681,14 @@ app.post("/api/downloads/:id/repair", validateParam(IdParamSchema), (req, res) =
 });
 
 // Static downloads dir WITH safeBase path traversal prevention
-const downloadDir = path.join(process.cwd(), "downloads");
+let downloadDir: string;
+if (process.env.DOWNLOAD_DIR) {
+  downloadDir = path.resolve(process.env.DOWNLOAD_DIR);
+} else if (IS_VERCEL) {
+  downloadDir = "/tmp/turbodownloader-downloads";
+} else {
+  downloadDir = path.join(process.cwd(), "downloads");
+}
 if (!fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true });
 app.use("/downloads", (req, res, next) => {
   try {
@@ -696,7 +723,7 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 });
 
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !IS_VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -709,13 +736,30 @@ async function startServer() {
       app.get("*", (_req, res) => {
         res.sendFile(path.join(distDir, "index.html"));
       });
+    } else if (IS_VERCEL) {
+      const staticDist = path.resolve(process.cwd(), "dist");
+      if (fs.existsSync(staticDist)) {
+        app.use(express.static(staticDist));
+        app.get("*", (_req, res) => {
+          res.sendFile(path.join(staticDist, "index.html"));
+        });
+      }
     }
   }
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`[TurboDownloader] Server running on http://localhost:${PORT}`);
-    console.log(`[TurboDownloader] Security: helmet+rateLimit+CORS-LAN+zod validation enabled`);
-    console.log(`[TurboDownloader] Persistence: SQLite (WAL) tasks/settings/event_log tables ready`);
-  });
+  if (!IS_VERCEL) {
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`[TurboDownloader] Server running on http://localhost:${PORT}`);
+      console.log(`[TurboDownloader] Security: helmet+rateLimit+CORS-LAN+zod validation enabled`);
+      console.log(`[TurboDownloader] Persistence: SQLite (WAL) tasks/settings/event_log tables ready`);
+    });
+  }
 }
 
-startServer();
+if (IS_VERCEL) {
+  startServer();
+} else if (process.argv[1]?.endsWith("server.ts") || process.argv[1]?.endsWith("server.js") || process.env.NODE_ENV === "production") {
+  startServer();
+}
+
+export default app;
+export { app as expressApp, server as httpServer };

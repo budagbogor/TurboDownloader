@@ -516,9 +516,9 @@ export class DownloadTask {
       outputDir: this.outputDir,
       tempDir: this.tempDir,
       getCategory: () => this.getCategory(),
-      setStatus: (s) => (this.status = s),
-      setError: (s) => (this.error = s),
-      setFinalSize: (n) => {
+      setStatus: (s: DownloadStatus) => (this.status = s),
+      setError: (s: string) => (this.error = s),
+      setFinalSize: (n: number) => {
         this.downloadedSize = n;
         this.totalSize = n;
       },
