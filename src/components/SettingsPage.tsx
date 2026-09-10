@@ -170,8 +170,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
               </p>
             </div>
             {isDirty && (
-              <span className="chip chip-warning !py-1 flex items-center gap-1.5 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse" />
+              <span
+                className="chip !py-1 flex items-center gap-1.5 shrink-0"
+                style={{
+                  background: "var(--warning-50)",
+                  color: "var(--warning-600)",
+                  border: "1px solid var(--warning-500)",
+                }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  style={{ background: "var(--warning-500)" }}
+                />
                 Unsaved changes
               </span>
             )}
@@ -390,33 +400,82 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-subtle bg-muted/50 shrink-0 min-h-[72px]">
           <div className="flex items-center gap-3 min-w-0">
             {saveError ? (
-              <span className="text-xs text-danger-700 font-semibold chip chip-danger !py-1">{saveError}</span>
+              <span
+                className="text-xs font-semibold chip !py-1 flex items-center gap-1.5"
+                style={{ background: "var(--danger-50)", color: "var(--danger-600)", border: "1px solid var(--danger-500)" }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse"
+                  style={{ background: "var(--danger-500)" }}
+                />
+                {saveError}
+              </span>
             ) : isDirty ? (
-              <span className="text-xs text-warning-700 font-semibold chip chip-warning !py-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse shrink-0" />
-              {saving ? "Menyimpan..." : "Perubahan belum disimpan — klik Save untuk permanen"}
-            </span>
+              <span
+                className="text-xs font-semibold chip !py-1 flex items-center gap-1.5"
+                style={{ background: "var(--warning-50)", color: "var(--warning-600)", border: "1px solid var(--warning-500)" }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse"
+                  style={{ background: "var(--warning-500)" }}
+                />
+                {saving ? "Menyimpan..." : "Perubahan belum disimpan — klik Save untuk permanen"}
+              </span>
             ) : (
-              <span className="text-xs text-success-700 font-semibold chip chip-success !py-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-success-500 shrink-0" />
-              Semua pengaturan tersimpan
-            </span>
+              <span
+                className="text-xs font-semibold chip !py-1 flex items-center gap-1.5"
+                style={{ background: "var(--success-50)", color: "var(--success-600)", border: "1px solid var(--success-500)" }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ background: "var(--success-500)" }}
+                />
+                Semua pengaturan tersimpan
+              </span>
             )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 text-sm font-semibold rounded-xl2 text-secondary bg-surface border border-muted hover:bg-subtle transition-colors"
+              className="px-4 py-2.5 text-sm font-semibold rounded-xl2 inline-flex items-center justify-center transition-colors shrink-0 min-w-[96px]"
+              style={{
+                color: "var(--text-secondary)",
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-muted)",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-surface)"; }}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !isDirty}
-              className="px-5 py-2.5 text-sm font-semibold rounded-xl2 bg-brand-600 hover:bg-brand-700 text-white disabled:bg-brand-300 disabled:cursor-not-allowed disabled:border disabled:border-brand-200 inline-flex items-center gap-2 shadow-ring transition-all active:translate-y-0 border border-brand-700/60"
+              className="px-5 py-2.5 text-sm font-semibold rounded-xl2 inline-flex items-center justify-center gap-2 transition-all shrink-0 min-w-[160px]"
+              style={{
+                color: "#ffffff",
+                background: saving || !isDirty ? "var(--brand-300, #a5b4fc)" : "var(--brand-600)",
+                border: `1px solid ${saving || !isDirty ? "var(--brand-200, #c7d2fe)" : "rgba(67,56,202,0.55)"}`,
+                boxShadow: "0 0 0 4px rgba(99,102,241,0.10)",
+                cursor: saving || !isDirty ? "not-allowed" : "pointer",
+                opacity: saving || !isDirty ? 0.85 : 1,
+                transform: saving ? "translateY(0)" : undefined,
+              }}
+              onMouseEnter={(e) => {
+                if (!(saving || !isDirty)) {
+                  (e.currentTarget as HTMLElement).style.background = "var(--brand-700)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!(saving || !isDirty)) {
+                  (e.currentTarget as HTMLElement).style.background = "var(--brand-600)";
+                }
+              }}
             >
-              <Save className="w-4 h-4" />
-              {saving ? "Saving..." : isDirty ? "Save Changes" : "Saved ✓"}
+              <Save className="w-4 h-4 shrink-0" />
+              <span className="shrink-0 whitespace-nowrap">
+                {saving ? "Saving..." : isDirty ? "Save Changes" : "Saved ✓"}
+              </span>
             </button>
           </div>
         </div>
