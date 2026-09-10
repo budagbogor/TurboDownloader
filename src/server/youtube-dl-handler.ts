@@ -4,7 +4,7 @@ import youtubedlPkg from "youtube-dl-exec";
 const youtubedl = (youtubedlPkg as any).default || youtubedlPkg;
 
 import { DEFAULT_USER_AGENT, Segment, dbgReport } from "./task-types.js";
-import { optimizeVideoForCompatibility } from "./ffmpeg-toolchain.js";
+import { getFfmpegBinary, optimizeVideoForCompatibility } from "./ffmpeg-toolchain.js";
 import type { YtDlTrackState } from "./media-extractors.js";
 
 export interface YtDlHandlerCtx extends YtDlTrackState {
@@ -75,10 +75,22 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
 
   try {
     const { spawn } = await import("child_process");
+    const ffmpegPath = getFfmpegBinary();
+    const ffmpegAvailable = !!ffmpegPath;
+
+    const sortSelector = ffmpegAvailable
+      ? "vcodec:h264,res:1080,fps,res,acodec:m4a,br"
+      : "res,fps,ext";
+    const formatSelector = ffmpegAvailable
+      ? "bestvideo*+bestaudio/best/bestvideo+bestaudio[ext=m4a]/bestvideo*+bestaudio[ext=m4a]/best"
+      : "best";
     const ytArgs = [
       ytUrl,
-      "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-      "--merge-output-format", "mp4",
+      "-S", sortSelector,
+      // If ffmpeg is missing, force a single progressive audio+video stream to avoid audio-only leftovers.
+      "-f", formatSelector,
+      ...(ffmpegPath ? ["--ffmpeg-location", ffmpegPath] : []),
+      ...(ffmpegAvailable ? ["--merge-output-format", "mp4"] : []),
       "--no-warnings",
       "--no-check-certificates",
       "-o", tempOutTemplate,
@@ -87,6 +99,24 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
       "--add-header", "Referer:https://www.youtube.com/",
       "--add-header", `User-Agent:${DEFAULT_USER_AGENT}`,
     ];
+
+    // #region debug-point B:yt-args
+    dbgReport(
+      "B",
+      "youtube-dl-handler.ts:startYoutubeDlDownload:ytArgs",
+      "[DEBUG] yt-dlp args prepared",
+      {
+        taskId: ctx.taskId,
+        ytUrl: String(ytUrl).slice(0, 120),
+        formatSelector,
+        sortSelector,
+        ffmpegAvailable: ffmpegAvailable ? 1 : 0,
+        ffmpegPath: ffmpegPath || "",
+        outputTemplate: tempOutTemplate,
+      },
+      "youtube-audio-stuck"
+    );
+    // #endregion
 
     let proc: any = null;
     let spawnMethod = "none";
@@ -208,12 +238,18 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
           const trackTotal = parseInt(parts[1], 10) || 0;
 
           const isTrackSwitch =
-            ctx.ytDlLastTrackPeak > 10240 &&
-            trackDownloaded <= 10240 &&
-            trackDownloaded < ctx.ytDlLastTrackPeak * 0.1;
+            ctx.ytDlTrackCountSeen > 0
+              ? // Jika sudah melihat 1+ track sebelumnya: PASTI SWITCH JIKA trackDownloaded TURUN DRASTIS < 50% lastPeak.
+                // (DULU terlalu ketat: && trackDownloaded <= 10240 → audio track mulai 1MB masih dianggap "lanjutan video"
+                //  padahal 1MB << lastPeak 105MB → trigger accum agar tidak reset.)
+                trackDownloaded < Math.max(10240, ctx.ytDlLastTrackPeak * 0.5)
+              : // Track pertama, jika peak sudah ada tapi trackDownloaded tiba-tiba drop < 1% peak
+                // (hanya safety net, first track jarang terjadi).
+                ctx.ytDlLastTrackPeak > 1024 * 1024 && trackDownloaded < ctx.ytDlLastTrackPeak * 0.01;
 
           if (isTrackSwitch) {
             const priorTrackSize = ctx.ytDlLastTrackPeak;
+            const prevAccum = ctx.ytDlDownloadedAccum;
             ctx.setYtDlField("ytDlDownloadedAccum", ctx.ytDlDownloadedAccum + priorTrackSize);
             ctx.setYtDlField("ytDlLastTrackPeak", 0);
             ctx.setYtDlField("ytDlTrackCountSeen", ctx.ytDlTrackCountSeen + 1);
@@ -224,6 +260,20 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
               }
               ctx.setYtDlField("ytDlStableTotalLocked", true);
             }
+            try {
+              dbgReport("H6", "youtube-dl-handler.ts:isTrackSwitch-triggered", "[TRACK SWITCH OK] Accumulated prior track to downloadedSize", {
+                __dbgEnv: "ws-closed-download-stuck",
+                taskId: ctx.taskId,
+                prevAccum,
+                priorTrackSize,
+                newAccum: ctx.ytDlDownloadedAccum,
+                lastPeakBeforeReset: priorTrackSize,
+                newTrackDownloaded: trackDownloaded,
+                newTrackTotal: trackTotal,
+                combinedTotal: ctx.totalSize,
+                ytDlTrackCountSeen: ctx.ytDlTrackCountSeen,
+              });
+            } catch { /* noop debug guard */ }
             console.log(`[Task ${ctx.taskId}] YouTube auto-detected track #${ctx.ytDlTrackCountSeen} switch (new accum = ${(ctx.ytDlDownloadedAccum / 1024 / 1024).toFixed(2)} MB, combinedTotal = ${(ctx.totalSize / 1024 / 1024).toFixed(2)} MB, LOCKED)`);
           }
 
@@ -309,11 +359,32 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
 
       if (code === 0 || code === null) {
         let finalFile = "";
+        const finalCandidates: Array<{ name: string; size: number }> = [];
         try {
           const files = fs.readdirSync(ctx.tempDir);
-          for (const f of files) {
+          const rankedFiles = files
+            .map((f) => {
+              const fp = path.join(ctx.tempDir, f);
+              try {
+                const st = fs.statSync(fp);
+                if (!st.isFile()) return null;
+                finalCandidates.push({ name: f, size: st.size });
+                const ext = path.extname(f).toLowerCase();
+                const isAudioOnly = ext === ".m4a" || ext === ".mp3" || ext === ".aac" || ext === ".opus" || ext === ".ogg";
+                const score = isAudioOnly ? 1 : 2;
+                return { fp, f, size: st.size, score };
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean)
+            .sort((a: any, b: any) => b.score - a.score || b.size - a.size);
+          for (const item of rankedFiles as Array<{ fp: string; f: string; size: number; score: number }>) {
+            const f = item.f;
+            try {
+            } catch {}
             if (f.endsWith(".mp4") || f.endsWith(".webm") || f.endsWith(".mkv") || f.endsWith(".m4a")) {
-              finalFile = path.join(ctx.tempDir, f);
+              finalFile = item.fp;
               break;
             }
           }
@@ -336,6 +407,24 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
             if (bestFile) finalFile = bestFile;
           } catch (_) {}
         }
+
+        // #region debug-point B/D:close-final-file
+        dbgReport(
+          "D",
+          "youtube-dl-handler.ts:onClose:final-file-selection",
+          "[DEBUG] yt-dlp close selected output candidate",
+          {
+            taskId: ctx.taskId,
+            exitCode: code === null ? "null" : code,
+            statusAtClose: ctx.getStatus(),
+            finalFile,
+            finalCandidates: finalCandidates.slice(0, 10),
+            downloadedSize: ctx.downloadedSize,
+            totalSize: ctx.totalSize,
+          },
+          "youtube-audio-stuck"
+        );
+        // #endregion
 
         if (finalFile && fs.existsSync(finalFile) && fs.statSync(finalFile).size > 1000) {
           try {

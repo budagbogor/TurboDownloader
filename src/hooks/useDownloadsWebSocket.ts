@@ -99,7 +99,7 @@ export function useDownloadsWebSocket(initialDownloads: DownloadTask[] = []) {
     let ws: WebSocket | null = null;
     try {
       ws = new WebSocket(getWsUrl());
-    } catch {
+    } catch (e: any) {
       retryCountRef.current += 1;
       const delay = BASE_BACKOFF_MS * Math.pow(2, retryCountRef.current - 1);
       reconnectTimerRef.current = window.setTimeout(connect, delay);
@@ -175,7 +175,9 @@ export function useDownloadsWebSocket(initialDownloads: DownloadTask[] = []) {
     ws.onerror = () => {
       if (!didOpen) scheduleReconnect();
     };
-    ws.onclose = () => scheduleReconnect();
+    ws.onclose = () => {
+      scheduleReconnect();
+    };
   }, [processDownloads, startPolling]);
 
   useEffect(() => {

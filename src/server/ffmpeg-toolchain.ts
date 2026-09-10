@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { exec } from "child_process";
+import { exec, execSync } from "child_process";
+import ffmpegStatic from "ffmpeg-static";
 
 export interface MergeCtx {
   taskId: string;
@@ -12,6 +13,21 @@ export interface MergeCtx {
   setError: (s: string) => void;
   setFinalSize: (n: number) => void;
   stopSpeedCalculation: () => void;
+}
+
+export function getFfmpegBinary(): string | null {
+  const packaged = typeof ffmpegStatic === "string" && ffmpegStatic ? ffmpegStatic : null;
+  if (packaged && fs.existsSync(packaged)) return packaged;
+  try {
+    execSync("ffmpeg -version", { stdio: "ignore", windowsHide: true });
+    return "ffmpeg";
+  } catch {
+    return null;
+  }
+}
+
+export function hasFfmpegBinary(): boolean {
+  return !!getFfmpegBinary();
 }
 
 export async function mergeSegments(
@@ -88,9 +104,13 @@ export async function optimizeVideoForCompatibility(outputFile: string): Promise
   }
 
   const tempOptimized = outputFile + ".opt.mp4";
+  const ffmpegBin = getFfmpegBinary();
+  if (!ffmpegBin) {
+    return;
+  }
   try {
     await new Promise<void>((resolve, reject) => {
-      const cmd = `ffmpeg -y -i "${outputFile}" -c:v copy -c:a aac -b:a 128k -movflags +faststart "${tempOptimized}"`;
+      const cmd = `"${ffmpegBin}" -y -i "${outputFile}" -c:v copy -c:a aac -b:a 128k -movflags +faststart "${tempOptimized}"`;
       exec(cmd, { timeout: 60000 }, (error) => {
         if (error) reject(error);
         else resolve();

@@ -219,11 +219,47 @@ export class DownloadTask {
       const targetUrl = this.normalizeUrl(this.downloadUrl);
       this.isYouTubeCdn = detectYouTubeCdn(targetUrl);
 
+      // NOTE: Sniff & Extract Media sering mengirim manifest HLS / googlevideo (m3u8 / hls_playlist).
+      //       URL manifest TIDAK BISA di-download via direct HTTP (cuma dapat text playlist, 0 progress).
+      //       Solusi: JIKA isYouTubeCdn ATAU URL end .m3u8 / contain hls/manifest → PAKAI yt-dlp direct mode
+      //       yang mengerti HLS & merge final MP4 + punya progress-template untuk progress UI.
+      if (!this.useYoutubeDlDirect && this.isYouTubeCdn) {
+        console.log(`[Task ${this.id}] Sniff Media YouTubeCDN (manifest/googlevideo) detected → route ke yt-dlp untuk HLS support & progress UI.`);
+        this.useYoutubeDlDirect = true;
+        if (!this.originalYouTubeUrl) {
+          // fallback: untuk Sniff & Extract, originalYouTubeUrl = targetUrl (yt-dlp unduh manifestnya)
+          this.originalYouTubeUrl = this.url;
+        }
+        this.ytDlDownloadedAccum = 0;
+        this.ytDlLastTrackDownloaded = 0;
+        this.ytDlTrackCountSeen = 0;
+        this.ytDlLastTrackPeak = 0;
+        this.ytDlStableTotalLocked = false;
+      } else if (!this.useYoutubeDlDirect) {
+        try {
+          const u = new URL(targetUrl);
+          const isHls =
+            /\.m3u8(\?|$)/i.test(u.pathname + u.search) ||
+            /hls|manifest|dash|playlist/i.test(u.pathname + u.search) ||
+            u.pathname.toLowerCase().endsWith(".mpd");
+          if (isHls) {
+            console.log(`[Task ${this.id}] HLS/DASH manifest detected (.m3u8/.mpd/hls/manifest) → route ke yt-dlp direct.`);
+            this.useYoutubeDlDirect = true;
+            if (!this.originalYouTubeUrl) this.originalYouTubeUrl = this.url;
+            this.ytDlDownloadedAccum = 0;
+            this.ytDlLastTrackDownloaded = 0;
+            this.ytDlTrackCountSeen = 0;
+            this.ytDlLastTrackPeak = 0;
+            this.ytDlStableTotalLocked = false;
+          }
+        } catch { /* noop */ }
+      }
+
       if (this.useYoutubeDlDirect) {
         this.numConnections = 1;
         this.supportsRange = false;
-      } else if (this.isYouTubeCdn || this.isSocialMedia) {
-        console.log(`[Task ${this.id}] YouTube/CDN detected, forcing single-stream mode for reliability.`);
+      } else if (this.isSocialMedia) {
+        console.log(`[Task ${this.id}] Social Media direct mode, forcing single-stream for reliability.`);
         this.numConnections = 1;
         this.supportsRange = false;
       }
@@ -235,16 +271,8 @@ export class DownloadTask {
 
       if (this.useYoutubeDlDirect) {
         this.createSegments();
-      } else if (!this.isYouTubeCdn) {
-        await this.probeTargetWrapper(targetUrl);
-        this.createSegments();
       } else {
-        if (this.totalSize === 0) {
-          try { await this.probeTargetWrapper(targetUrl); }
-          catch (probeErr: any) {
-            console.warn(`[Task ${this.id}] YouTube CDN probe skipped/failed (${probeErr.message}), will stream blind.`);
-          }
-        }
+        await this.probeTargetWrapper(targetUrl);
         this.createSegments();
       }
 
@@ -308,6 +336,11 @@ export class DownloadTask {
     this.isCancelled = false;
     this.startSpeedCalculation();
 
+    if (this.useYoutubeDlDirect && !this.originalYouTubeUrl) {
+      // Restored tasks from DB do not persist this field; fall back to original task URL.
+      this.originalYouTubeUrl = this.url;
+    }
+
     if (this.useYoutubeDlDirect && this.originalYouTubeUrl) {
       this.startYtDlWrapper();
       return;
@@ -341,11 +374,68 @@ export class DownloadTask {
       ytDlLastTrackPeak: this.ytDlLastTrackPeak,
       ytDlStableTotalLocked: this.ytDlStableTotalLocked,
       getStatus: () => this.status,
-      setStatus: (s) => (this.status = s),
+      // #region debug-point A/C:yt-status-transition
+      setStatus: (s) => {
+        const prevStatus = this.status;
+        this.status = s;
+        dbgReport(
+          "A",
+          "DownloadTask.ts:startYtDlWrapper:setStatus",
+          "[DEBUG] yt-dlp task status transition",
+          {
+            taskId: this.id,
+            prevStatus,
+            nextStatus: s,
+            downloadedSize: this.downloadedSize,
+            totalSize: this.totalSize,
+            useYoutubeDlDirect: this.useYoutubeDlDirect ? 1 : 0,
+            hasProcess: this.youtubeDlProcess ? 1 : 0,
+          },
+          "youtube-audio-stuck"
+        );
+      },
+      // #endregion
       setError: (s) => (this.error = s || undefined),
       setProcess: (p) => (this.youtubeDlProcess = p),
-      setDownloadedSize: (n) => (this.downloadedSize = n),
-      setTotalSize: (n) => (this.totalSize = n),
+      // #region debug-point H6:monotonic-safety-net
+      // SAFETY NET: downloadedSize TIDAK PERNAH turun selama status=downloading.
+      //             Jika switch track DASH tertinggal (isTrackSwitch gagal ke-trigger),
+      //             MONOTONIC NON-DECREASE menjaga progress UI tidak reset ke 0.
+      //             Allow drop HANYA jika status completed (file merged final size).
+      setDownloadedSize: (n: number) => {
+        const safeN = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+        const allowDrop =
+          this.status === "completed" ||
+          this.status === "merging" ||
+          this.status === "paused" ||
+          this.status === "error";
+        if (allowDrop || safeN >= this.downloadedSize) {
+          this.downloadedSize = safeN;
+        } else {
+          // Ignore spurious drop (concurrent track progress reordered)
+          try {
+            dbgReport("H6", "DownloadTask.ts:setDownloadedSize:monotonic-guard", "[SAFETY] Drop blocked by monotonic guard", {
+              __dbgEnv: "ws-closed-download-stuck",
+              taskId: this.id,
+              status: this.status,
+              currentDownloaded: this.downloadedSize,
+              attemptedNew: safeN,
+              dropped: this.downloadedSize - safeN,
+              ytDlTrackCountSeen: (this as any).ytDlTrackCountSeen || 0,
+              ytDlDownloadedAccum: (this as any).ytDlDownloadedAccum || 0,
+              ytDlLastTrackPeak: (this as any).ytDlLastTrackPeak || 0,
+            });
+          } catch { /* noop */ }
+        }
+      },
+      setTotalSize: (n: number) => {
+        const safeN = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+        // totalSize juga monotonic naik; kecuali saat merging final size lebih kecil.
+        if (this.status === "completed" || this.status === "merging" || safeN >= this.totalSize) {
+          this.totalSize = safeN;
+        }
+      },
+      // #endregion
       setYtDlField: (field: keyof YtDlTrackState, value) => ((this as any)[field] = value),
       setSegment0: (updater) => {
         if (this.segments.length > 0) updater(this.segments[0]);

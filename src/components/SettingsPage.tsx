@@ -140,6 +140,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
     setSettings((prev) => ({ ...prev, [key]: value }));
 
+  const isDirty = Object.keys(settings).some(
+    (k) => settings[k as keyof AppSettings] !== initialSettings[k as keyof AppSettings],
+  );
+
   const handleSave = async () => {
     setSaving(true);
     setSaveError(null);
@@ -158,11 +162,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 backdrop-blur-md p-4 animate-fade-in">
       <div className="w-full max-w-4xl max-h-[90vh] surface-card flex flex-col overflow-hidden animate-fade-in">
         <div className="flex items-center justify-between px-6 py-4.5 border-b border-subtle shrink-0">
-          <div>
-            <h2 className="text-xl font-extrabold tracking-tight gradient-text-brand">Settings</h2>
-            <p className="text-xs text-muted mt-0.5 leading-relaxed">
-              Konfigurasi aplikasi disimpan permanen ke database SQLite lokal
-            </p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-xl font-extrabold tracking-tight gradient-text-brand">Settings</h2>
+              <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                Konfigurasi aplikasi disimpan permanen ke database SQLite lokal
+              </p>
+            </div>
+            {isDirty && (
+              <span className="chip chip-warning !py-1 flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse" />
+                Unsaved changes
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -375,24 +387,38 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isOpen, initialSetti
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-subtle bg-muted/50 shrink-0">
-          {saveError && (
-            <span className="text-xs text-danger-600 font-semibold mr-auto chip chip-danger !py-1">{saveError}</span>
-          )}
-          <button
-            onClick={onClose}
-            className="px-4 py-2.5 text-sm font-semibold rounded-xl2 text-secondary bg-surface border border-muted hover:bg-subtle transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4.5 py-2.5 text-sm font-semibold rounded-xl2 bg-gradient-to-br from-brand-500 to-brand-700 hover:from-brand-600 hover:to-indigo-800 text-white disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-ring transition-all hover:-translate-y-0.5"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-subtle bg-muted/50 shrink-0 min-h-[72px]">
+          <div className="flex items-center gap-3 min-w-0">
+            {saveError ? (
+              <span className="text-xs text-danger-700 font-semibold chip chip-danger !py-1">{saveError}</span>
+            ) : isDirty ? (
+              <span className="text-xs text-warning-700 font-semibold chip chip-warning !py-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse shrink-0" />
+              {saving ? "Menyimpan..." : "Perubahan belum disimpan — klik Save untuk permanen"}
+            </span>
+            ) : (
+              <span className="text-xs text-success-700 font-semibold chip chip-success !py-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-success-500 shrink-0" />
+              Semua pengaturan tersimpan
+            </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 text-sm font-semibold rounded-xl2 text-secondary bg-surface border border-muted hover:bg-subtle transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !isDirty}
+              className="px-5 py-2.5 text-sm font-semibold rounded-xl2 bg-brand-600 hover:bg-brand-700 text-white disabled:bg-brand-300 disabled:cursor-not-allowed disabled:border disabled:border-brand-200 inline-flex items-center gap-2 shadow-ring transition-all active:translate-y-0 border border-brand-700/60"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? "Saving..." : isDirty ? "Save Changes" : "Saved ✓"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

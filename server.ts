@@ -28,6 +28,7 @@ import {
   analyzeUniversalMedia,
   listSupportedPlatforms,
 } from "./src/server/universal-extractors.js";
+import { getFfmpegBinary, hasFfmpegBinary } from "./src/server/ffmpeg-toolchain.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,7 +51,7 @@ app.use(
         fontSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         mediaSrc: ["'self'", "data:", "blob:", "https:"],
-        connectSrc: ["'self'", "ws://localhost:*", "wss://localhost:*", "ws://127.0.0.1:*", "wss://127.0.0.1:*", "http://localhost:*", "https:"],
+        connectSrc: ["'self'", "ws://localhost:*", "wss://localhost:*", "ws://127.0.0.1:*", "wss://127.0.0.1:*", "http://localhost:*", "https://localhost:*", "http://127.0.0.1:*", "https://127.0.0.1:*", "https:"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
       },
@@ -177,7 +178,48 @@ function safeResolve(baseDir: string, ...join: string[]): string {
 // ============================================================
 // WebSocket connection handling
 // ============================================================
-wss.on("connection", (ws) => {
+// #region debug-point H2-H5-upgrade-listener
+// NOTE: `new WebSocketServer({ server })` OTOMATIS attach server.on("upgrade")
+//       INTERNALLY. Kita JANGAN PERNAH panggil wss.handleUpgrade() LAGI di
+//       user-space listener — akan throw "handleUpgrade called more than once".
+//       Guard ini HANYA untuk logging/instrumentasi; actual handshake tetap
+//       oleh internal ws listener (tidak kita intervensi socket).
+let __wssInternalUpgradeFired = false;
+server.on("upgrade", (req, socket, head) => {
+  try {
+    debugReport("H2", "server.ts:upgrade-event", "HTTP upgrade event fired", {
+      __dbgEnv: "ws-closed-download-stuck",
+      reqUrl: req.url,
+      reqMethod: req.method,
+      upgradeHeader: String(req.headers["upgrade"] || ""),
+      secWsKey: String(req.headers["sec-websocket-key"] || "").slice(0, 8) + "...",
+      secWsVersion: String(req.headers["sec-websocket-version"] || ""),
+      remoteAddr: String(req.socket?.remoteAddress || ""),
+      wssClientCount: wss.clients.size,
+      internalUpgrade: typeof __wssInternalUpgradeFired === "boolean" ? 1 : 0,
+    });
+    __wssInternalUpgradeFired = true;
+  } catch {
+    // Instrumentasi gagal tidak boleh pengaruhi handshake
+  }
+  // PENTING: JANGAN panggil wss.handleUpgrade() di sini!
+  //         ws library internal yang menangani secara dedup-safe.
+});
+// #endregion
+
+wss.on("connection", (ws, req) => {
+  // #region debug-point H2-H4-connection
+  try {
+    debugReport("H2", "server.ts:wss-on-connection", "Client connected to WebSocket server (post-handshake)", {
+      __dbgEnv: "ws-closed-download-stuck",
+      reqUrl: req?.url,
+      remoteAddr: String(req?.socket?.remoteAddress || ""),
+      totalClients: wss.clients.size,
+      downloadsCount: downloadManager.getAll().length,
+      activeDownloadingCount: downloadManager.getAll().filter((d: any) => d.status === "downloading").length,
+    });
+  } catch { /* debug guard noop */ }
+  // #endregion
   try {
     ws.send(JSON.stringify({ type: "INIT", data: downloadManager.getAll() }));
   } catch (e) {
@@ -186,11 +228,50 @@ wss.on("connection", (ws) => {
 });
 
 function broadcast(message: any) {
+  const clients = Array.from(wss.clients);
+  const openClients = clients.filter(c => c.readyState === WebSocket.OPEN);
+  // #region debug-point H4-broadcast
+  try {
+    if (message?.type === "UPDATE_ALL") {
+      const active = (Array.isArray(message?.data) ? message.data : []).filter((d: any) =>
+        d.status === "downloading" || d.status === "merging"
+      );
+      if (active.length > 0) {
+        const summary = active.map((t: any) => ({
+          id: t.id?.slice(0, 8) + "…",
+          status: t.status,
+          downloaded: t.downloadedSize,
+          total: t.totalSize,
+          speed: t.speed,
+        }));
+        debugReport("H4", "server.ts:broadcast-UPDATE_ALL", "Broadcasting UPDATE_ALL to clients", {
+          __dbgEnv: "ws-closed-download-stuck",
+          clientCount: openClients.length,
+          totalClients: clients.length,
+          messageType: message.type,
+          activeCount: active.length,
+          activeSample: summary.slice(0, 2),
+        });
+      }
+    }
+  } catch { /* debug guard noop */ }
+  // #endregion
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       try {
         client.send(JSON.stringify(message));
-      } catch (e) {}
+      } catch (e) {
+        // #region debug-point H4-broadcast-fail
+        try {
+          debugReport("H4", "server.ts:broadcast-send-ERROR", "Failed to WS send", {
+            __dbgEnv: "ws-closed-download-stuck",
+            error: String((e as any)?.message || e),
+            clientReadyState: client.readyState,
+            messageType: message?.type,
+          });
+        } catch { /* noop */ }
+        // #endregion
+      }
     }
   });
 }
@@ -198,9 +279,32 @@ function broadcast(message: any) {
 setInterval(() => {
   const all = downloadManager.getAll();
   const active = all.filter((d: any) => d.status === "downloading" || d.status === "merging" || d.status === "pending");
-  if (active.length > 0) {
-    broadcast({ type: "UPDATE_ALL", data: all });
-  }
+  // #region debug-point A/C:ws-broadcast-summary
+  try {
+    const interesting = all
+      .filter((d: any) => d.status !== "completed" || d.downloadedSize > 0)
+      .slice(0, 3)
+      .map((d: any) => ({
+        id: d.id?.slice(0, 8) + "…",
+        status: d.status,
+        downloaded: d.downloadedSize,
+        total: d.totalSize,
+        progress: d.progress,
+      }));
+    debugReport("A", "server.ts:setInterval:broadcast-summary", "[DEBUG] periodic UPDATE_ALL snapshot", {
+      __dbgEnv: "youtube-audio-stuck",
+      activeCount: active.length,
+      totalCount: all.length,
+      sample: interesting,
+    });
+  } catch {}
+  // #endregion
+  // NOTE: SELALU BROADCAST setiap detik, BUKAN HANYA jika active > 0.
+  //       Sebelumnya filter `if (active.length > 0)` menyebabkan:
+  //       ketika task terakhir transition completed → active.length 0 → IF FALSE.
+  //       UI TIDAK PERNAH meneriman UPDATE status completed → stuck Downloading @100% infinite.
+  //       Performance: payload JSON semua task ringan (<1000 task umumnya << 100KB), jadi selalu broadcast aman.
+  broadcast({ type: "UPDATE_ALL", data: all });
 }, 1000);
 
 // ============================================================
@@ -228,7 +332,8 @@ app.get("/api/health", async (req, res) => {
     results.ytdlp = { installed: true, package: "youtube-dl-exec" };
   } catch {}
   try {
-    results.ffmpeg = { available: true, note: "System PATH or npm ffmpeg-static (configurable)" };
+    const ffmpegBin = getFfmpegBinary();
+    results.ffmpeg = { available: hasFfmpegBinary(), binary: ffmpegBin || null };
   } catch {}
   res.json(results);
 });
@@ -524,8 +629,12 @@ app.post("/api/downloads/:id/repair", validateParam(IdParamSchema), (req, res) =
     const baseDir = safeResolve(process.cwd(), "downloads");
     const filePath = safeResolve(baseDir, task.filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found on disk" });
+    const ffmpegBin = getFfmpegBinary();
+    if (!ffmpegBin) {
+      return res.status(500).json({ error: "FFmpeg tidak tersedia untuk repair video" });
+    }
     const tempOut = filePath + ".repaired.mp4";
-    const cmd = `ffmpeg -y -i "${filePath}" -c:v copy -c:a aac -b:a 128k -movflags +faststart "${tempOut}"`;
+    const cmd = `"${ffmpegBin}" -y -i "${filePath}" -c:v copy -c:a aac -b:a 128k -movflags +faststart "${tempOut}"`;
     exec(cmd, { timeout: 60000 }, (error) => {
       if (error) {
         console.error("Manual repair error:", error);

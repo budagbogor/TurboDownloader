@@ -133,6 +133,24 @@ class DownloadManager {
     await task.initialize();
     this.tasks.set(task.id, task);
 
+    // #region debug-point C:add-download-created
+    dbgReport(
+      "C",
+      "DownloadManager.ts:addDownload:after-initialize",
+      "[DEBUG] addDownload created task",
+      {
+        taskId: task.id,
+        status: task.status,
+        filename: task.filename,
+        useYoutubeDlDirect: task.useYoutubeDlDirect ? 1 : 0,
+        totalSize: task.totalSize,
+        activeCount,
+        maxConcurrent,
+      },
+      "youtube-audio-stuck"
+    );
+    // #endregion
+
     this.markDirty(task.id);
     this.flushDirtyImmediately();
 
@@ -145,6 +163,20 @@ class DownloadManager {
 
     if (activeCount >= maxConcurrent) {
       task.status = "pending";
+      // #region debug-point C:add-download-queued
+      dbgReport(
+        "C",
+        "DownloadManager.ts:addDownload:queued",
+        "[DEBUG] task queued because max concurrent reached",
+        {
+          taskId: task.id,
+          activeCount,
+          maxConcurrent,
+          pendingCount: Array.from(this.tasks.values()).filter((t) => t.status === "pending").length,
+        },
+        "youtube-audio-stuck"
+      );
+      // #endregion
       appendEventLog({ taskId: task.id, eventType: "queued", message: `Queued (max ${maxConcurrent} running)` });
     } else {
       task.start();
@@ -214,6 +246,22 @@ class DownloadManager {
       const t = pending[i];
       appendEventLog({ taskId: t.id, eventType: "dequeued", message: "Started from queue" });
       t.start();
+      // #region debug-point C:process-queue-dequeued
+      dbgReport(
+        "C",
+        "DownloadManager.ts:processQueue:dequeued",
+        "[DEBUG] pending task started from queue",
+        {
+          taskId: t.id,
+          slots,
+          maxConcurrent,
+          activeCount: active.length,
+          pendingCountBefore: pending.length,
+          statusAfterStart: t.status,
+        },
+        "youtube-audio-stuck"
+      );
+      // #endregion
       // #region debug-point H5:processQueue-start
       dbgReport("H5", "DownloadManager.ts:processQueue:212", "[DEBUG] H5 processQueue dequeue start() called", { taskId: t.id, statusAfterStart: t.status, useYoutubeDlDirect: (t as any).useYoutubeDlDirect });
       // #endregion
