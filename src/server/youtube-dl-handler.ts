@@ -6,6 +6,7 @@ const youtubedl = (youtubedlPkg as any).default || youtubedlPkg;
 import { DEFAULT_USER_AGENT, Segment, dbgReport } from "./task-types.js";
 import { getFfmpegBinary, optimizeVideoForCompatibility } from "./ffmpeg-toolchain.js";
 import type { YtDlTrackState } from "./media-extractors.js";
+import { getAllSettings } from "./database.js";
 
 export interface YtDlHandlerCtx extends YtDlTrackState {
   taskId: string;
@@ -78,6 +79,20 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
     const ffmpegPath = getFfmpegBinary();
     const ffmpegAvailable = !!ffmpegPath;
 
+    let cookieArg: string[] = [];
+    try {
+      const s = getAllSettings();
+      if (s?.youtubeCookiePath) {
+        const resolved = path.resolve(String(s.youtubeCookiePath));
+        if (fs.existsSync(resolved)) {
+          cookieArg = ["--cookies", resolved];
+        }
+      }
+      if (s?.instagramCookieHeader && !cookieArg.length && (ytUrl.includes("instagram") || ytUrl.includes("cdninstagram"))) {
+        cookieArg = ["--add-header", `Cookie:${s.instagramCookieHeader}`];
+      }
+    } catch (_cookieErr) { /* ignore */ }
+
     const sortSelector = ffmpegAvailable
       ? "vcodec:h264,res:1080,fps,res,acodec:m4a,br"
       : "res,fps,ext";
@@ -93,11 +108,18 @@ export async function startYoutubeDlDownload(ctx: YtDlHandlerCtx): Promise<void>
       ...(ffmpegAvailable ? ["--merge-output-format", "mp4"] : []),
       "--no-warnings",
       "--no-check-certificates",
+      ...cookieArg,
+      "--extractor-args", "youtube:player_clients=android,web,ios,mweb,web_embedded,tv_downgraded",
+      "--js-runtimes", "node",
+      "--no-quiet",
       "-o", tempOutTemplate,
       "--newline",
       "--progress-template", "PROGRESS:%(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.speed)s/%(progress.eta)s",
       "--add-header", "Referer:https://www.youtube.com/",
       "--add-header", `User-Agent:${DEFAULT_USER_AGENT}`,
+      "--add-header", "Accept-Language:en-US,en;q=0.9,id;q=0.8",
+      "--add-header", "Sec-Fetch-Dest:document",
+      "--add-header", "Origin:https://www.youtube.com",
     ];
 
     // #region debug-point B:yt-args
